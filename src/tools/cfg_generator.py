@@ -108,8 +108,8 @@ class ConfigGenerator:
         item += f"proxies.port_forward.proxy.item0.forward_protocol = tcp,udp\n"
         return item
 
-    def _generate_route_item(self,  # pylint disable=R0917
-                             index, src, dst, gw, mask="255.255.255.255", metric=1):  # pylint disable=R0917
+    def _generate_route_item(self,  # pylint: disable=R0917
+                             index, src, dst, gw, mask="255.255.255.255", metric=1):  # pylint: disable=R0917
         item = f"routes.item{index}.src = {src}\n"
         item += f"routes.item{index}.dst = {dst}\n"
         item += f"routes.item{index}.mask = {mask}\n"
@@ -224,7 +224,7 @@ class ConfigGenerator:
                 logging.info("Generated %s/h%d.ini", self.path, i)
 
 
-def generate_cfg_files(num_nodes, node_ip_range="10.0.0.0/8",
+def generate_cfg_files(num_nodes, node_ip_range="10.0.0.0/8", # pylint: disable=R0917
                        virtual_ip_prefix="1.0.0.",
                        output_dir="/tmp",
                        tun_mode="BTP",

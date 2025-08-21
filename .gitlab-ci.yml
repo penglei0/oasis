@@ -47,8 +47,11 @@ build-generic-container:
   tags:
     - docker
   rules:
-    - changes:
-        - "Dockerfile.ubuntu-generic"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - Dockerfile.ubuntu-generic
   variables:
     IMAGE_NAME: $CI_REGISTRY/$CI_PROJECT_PATH/ubuntu-generic
     DOCKERFILE: Dockerfile.ubuntu-generic
@@ -70,8 +73,11 @@ build-lttng-container:
   tags:
     - docker
   rules:
-    - changes:
-        - "Dockerfile.ubuntu-generic-lttng"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - Dockerfile.ubuntu-generic-lttng
   variables:
     IMAGE_NAME: $CI_REGISTRY/$CI_PROJECT_PATH/ubuntu-generic
     DOCKERFILE: Dockerfile.ubuntu-generic-lttng
@@ -91,8 +97,11 @@ build-modified-containernet:
   tags:
     - docker
   rules:
-    - changes:
-        - "Dockerfile.containernet"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - Dockerfile.containernet
   variables:
     IMAGE_NAME: $CI_REGISTRY/$CI_PROJECT_PATH/containernet
     DOCKERFILE: Dockerfile.containernet
