@@ -1,0 +1,18 @@
+FROM gitlab.app.n-hop.com:5005/dependencies/oasis/ubuntu-generic:latest
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN set -eux; \
+        apt-get update; \
+        apt-get upgrade --yes; \
+        apt-get install software-properties-common --yes; \
+        apt-add-repository --yes ppa:lttng/stable-2.13; \
+        apt-get update; \
+        apt-get install liblttng-ust-dev babeltrace lttng-tools --yes;
+
+
+## Cleanup
+RUN set -eux; \
+        rm -rf /var/lib/apt/lists/*; \
+        rm -rf /tmp/*;
+
+WORKDIR /root

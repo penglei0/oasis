@@ -63,6 +63,27 @@ build-generic-container:
       --tag $IMAGE_NAME:$CI_COMMIT_SHA
       --file $DOCKERFILE .
 
+build-lttng-container:
+  stage: build
+  interruptible: true
+  allow_failure: false
+  tags:
+    - docker
+  rules:
+    - changes:
+        - "Dockerfile.ubuntu-generic-lttng"
+  variables:
+    IMAGE_NAME: $CI_REGISTRY/$CI_PROJECT_PATH/ubuntu-generic
+    DOCKERFILE: Dockerfile.ubuntu-generic-lttng
+  script:
+    - >
+      docker build
+      --pull
+      --push
+      --provenance false
+      --tag $IMAGE_NAME:lttng
+      --file $DOCKERFILE .
+
 build-modified-containernet:
   stage: build
   interruptible: true
