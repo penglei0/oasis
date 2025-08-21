@@ -1,6 +1,6 @@
 import logging
 import copy
-import os
+import os # pylint: disable=W0611
 from abc import ABC, abstractmethod
 from typing import List
 from core.topology import (ITopology)
