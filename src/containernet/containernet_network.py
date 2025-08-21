@@ -199,7 +199,7 @@ class ContainerizedNetwork (INetwork):
                     root_fs_from_oasis, self.hosts[i].name())
         return True
 
-    def _run_init_script(self, start_index, end_index):
+    def _run_init_script(self, start_index, end_index): # pylint: disable=R1710
         if not self.node_init_script:
             logging.info("No init script to run on the hosts.")
             return True
