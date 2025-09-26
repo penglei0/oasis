@@ -48,6 +48,8 @@ class ContainerizedNetwork (INetwork):
         self.node_init_script = node_config.init_script or ""
         self.config_base_path = node_config.config_base_path or ""
         logging.info('ContainerizedNetwork uses node_img %s', self.node_img)
+        logging.info('ContainerizedNetwork uses envs %s', node_config.env)
+        self.node_envs = node_config.env or {}
         # `node_ip_start` init from node_ip_range
         base, _ = netParse(self.node_ip_range)
         self.node_ip_prefix = 24
@@ -233,6 +235,7 @@ class ContainerizedNetwork (INetwork):
                 ip=None,
                 volumes=self.node_vols,
                 cap_add=["NET_ADMIN", "SYS_ADMIN"],
+                environment=self.node_envs,
                 dimage=self.node_img,
                 ports=ports,
                 port_bindings=port_bindings,

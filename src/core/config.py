@@ -4,7 +4,7 @@
 """
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Mapping
 import logging
 import os
 import yaml
@@ -27,6 +27,7 @@ class NodeConfig:
     # the script to run when the node starts(after routes are set)
     init_script: Optional[str] = field(default="")
     config_base_path: Optional[str] = field(default="")
+    env: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -48,6 +49,22 @@ class NestedConfig:
 supported_config_keys = ["topology", "node_config"]
 
 
+def _normalize_env(env_value: Any) -> Dict[str, str]:
+    if env_value is None:
+        return {}
+    if isinstance(env_value, Mapping):
+        return {str(k): str(v) for k, v in env_value.items()}
+    if isinstance(env_value, list):
+        flattened: Dict[str, str] = {}
+        for item in env_value:
+            if isinstance(item, Mapping):
+                for key, value in item.items():
+                    flattened[str(key)] = str(value)
+        return flattened
+    logging.warning("Unexpected env format: %s", env_value)
+    return {}
+
+
 class IConfig(ABC):
     @staticmethod
     def is_supported_config_key(config_key: str):
@@ -55,7 +72,7 @@ class IConfig(ABC):
 
     @staticmethod
     def load_config_reference(config_base_path: str, yaml_config_file: str,
-                              config_name: str, scripts: str, config_key: str):
+                              config_name: str, scripts: str, envs: Dict, config_key: str):
         if not IConfig.is_supported_config_key(config_key):
             logging.error(
                 f"load_config_reference: key %s is not supported.",
@@ -90,7 +107,6 @@ class IConfig(ABC):
         for conf in loaded_yaml_config[config_key]:
             if conf['name'] == config_name:
                 loaded_config = conf
-                logging.info('load_config_reference: loaded %s', loaded_config)
                 break
         if loaded_config is None:
             logging.error(
@@ -99,8 +115,13 @@ class IConfig(ABC):
             return None
         if config_key == "node_config":
             loaded_config["init_script"] = scripts
+            loaded_config["env"] = _normalize_env(envs)
+            logging.error(
+                '###########################load_config_reference: loaded %s', loaded_config)
             return NodeConfig(**loaded_config)
         if config_key == "topology":
+            logging.info(
+                '###########################load_config_reference: loaded %s', loaded_config)
             return TopologyConfig(**loaded_config)
         return None
 
@@ -114,6 +135,7 @@ class IConfig(ABC):
                 config_key)
             return None
         init_script = yaml_description.get('init_script', "")
+        init_env = yaml_description.get('env', {})
         is_load_from_file = ["config_file", "config_name"]
         if all(key in yaml_description for key in is_load_from_file):
             # load from the yaml file `config_file`
@@ -122,6 +144,7 @@ class IConfig(ABC):
                 yaml_description['config_file'],
                 yaml_description['config_name'],
                 init_script,
+                init_env,
                 config_key)
         # load directly from the yaml_description
         logging.info('load_yaml_config: %s', yaml_description)
