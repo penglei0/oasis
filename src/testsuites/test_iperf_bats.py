@@ -31,13 +31,13 @@ class IperfBatsTest(ITestSuite):
         client_log_path = os.path.join(
             base_path, f"{proto_name}_client/log/")
         for intf in server.getIntfs():
-            bats_iperf_server_cmd = f'bats_iperf -s -p {receiver_port} -I {intf}' \
+            bats_iperf_server_cmd = f'bats_iperf -s -p {receiver_port} -i {float(interval)} -I {intf}' \
                 f' -l {self.result.record}  -L {server_log_path} &'
             logging.info(
                 'bats_iperf server cmd: %s', bats_iperf_server_cmd)
             server.cmd(f'{bats_iperf_server_cmd}')
         bats_iperf_client_cmd = f'bats_iperf -c {receiver_ip} {args_from_proto} -p {receiver_port} -P {parallel}' \
-            f' -i {int(interval)} -t {int(interval_num * interval)} -L {client_log_path}'
+            f' -i {float(interval)} -t {int(interval_num)} -L {client_log_path}'
         logging.info('bats_iperf client cmd: %s', bats_iperf_client_cmd)
         res = client.popen(
             f'{bats_iperf_client_cmd}').stdout.read().decode('utf-8')
