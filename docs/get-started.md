@@ -23,7 +23,7 @@ First step is to get the source code of Oasis from GitHub:
 
 ```bash
 
-git clone https://github.com/n-hop/oasis.git
+git clone https://github.com/penglei0/oasis.git
 
 ```
 

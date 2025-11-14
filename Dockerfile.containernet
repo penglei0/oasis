@@ -1,4 +1,4 @@
-FROM gitlab.app.n-hop.com:5005/dependencies/containernet:latest
+FROM containernet:latest
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ="Etc/UTC"
 
