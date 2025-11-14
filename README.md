@@ -28,7 +28,7 @@ See workflow details in [docs/get-started.md](docs/get-started.md).
 1. **Prepare dependencies** — follow the prerequisites (WSL kernel TC support, Docker, Python) listed in [docs/get-started.md](docs/get-started.md#1-prerequisites).
 2. **Launch a test**:
    ```bash
-   sudo python3 src/start.py -p src/config --containernet=official -t protocol-ci-test.yaml:test1
+   sudo python3 src/start.py -p src/config --containernet=default -t protocol-ci-test.yaml:test1
    ```
 3. **Inspect results** — Oasis writes analyzer artifacts per test suite; see [docs/get-started.md](docs/get-started.md#3-test-results) for paths and sample outputs.
 
@@ -51,14 +51,13 @@ See workflow details in [docs/get-started.md](docs/get-started.md).
    your_project/
    ├── oasis_src/                  # oasis git submodule
    ├── test/                       # tests related definition
-         ├── nested-containernet-config.yaml  # your custom containernet docker config
-         ├── predefined.node_config.yaml      # your custom node config
-         ├── predefined.protocols.yaml        # your custom protocols definition
-         ├── predefined.topology.yaml         # your custom topology definition
-         ├── your_test_cases.yaml             # your custom test cases definition
-         ├── rootfs/                          # your custom rootfs files which will be updated 
-                                              # to the running containers
-
+       ├── nested-containernet-config.yaml  # your custom containernet docker config
+       ├── predefined.node_config.yaml      # your custom node config
+       ├── predefined.protocols.yaml        # your custom protocols definition
+       ├── predefined.topology.yaml         # your custom topology definition
+       ├── your_test_cases.yaml             # your custom test cases definition
+       ├── rootfs/                          # your custom rootfs files which will be updated 
+                                             # to the running containers
    ```
 
 3. **run your tests**:
