@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-# Wrapper of `sudo python3 oasis_src/src/start.py ...`
+# Wrapper of `sudo python3 oasis_src/src/start.py ...` OR
+# Wrapper of `sudo python3 src/start.py ...`
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Usage:
 # 
@@ -13,6 +14,8 @@ current_path=$(pwd)
 oasis_help_scripts="<==== Oasis Helper scripts ===> "
 oasis_check_passed_mark=' [✓]'
 oasis_check_failed_mark=' [✗]'
+default_oasis_src_path="oasis_src" # relative path to oasis source code
+
 print_message() {
     local message="$1"
     local status="$2"  # "pass" or "fail"
