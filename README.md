@@ -55,7 +55,7 @@ See workflow details in [docs/get-started.md](docs/get-started.md).
          ├── predefined.node_config.yaml      # your custom node config
          ├── predefined.protocols.yaml        # your custom protocols definition
          ├── predefined.topology.yaml         # your custom topology definition
-         ├── your_protocol_test_cases.yaml    # your custom test cases definition
+         ├── your_test_cases.yaml    # your custom test cases definition
          ├── rootfs/                          # your custom rootfs files which will be updated to the running containers
 
    ```
@@ -63,13 +63,13 @@ See workflow details in [docs/get-started.md](docs/get-started.md).
 3. **run your tests**:
 
 ```bash
-sudo python3 oasis/src/start.py -p test --containernet=custom -t your_protocol_test_cases.yaml:test_case_1
+sudo python3 oasis/src/start.py -p test --containernet=custom -t your_test_cases.yaml:test_1
 ```
 
 4. **run your tests with helper script**:
 
 ```bash
-./src/tools/run_test.sh your_protocol_test_cases.yaml:test_case_1 --cleanup
+./src/tools/run_test.sh your_test_cases.yaml:test_1 --cleanup
 ```
 
 `run_test.sh` assumes your custom config files are in the `test/` folder. The `--cleanup` flag will remove all the generated logs after the test is done.
