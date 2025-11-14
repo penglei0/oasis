@@ -42,7 +42,3 @@ The binary located in `bin/tcp_message/tcp_endpoint` is a tool for measuring the
 ### 2.3 sshping
 
 `sshping` is a tool for sending ping messages over SSH. The source code is in [sshping](https://github.com/spook/sshping).
-
-### 2.4 Traffic control (tc)
-
-[`docs/tc-strategy.md`](tc-strategy.md) provides a detailed explanation of the traffic control strategy in Oasis.
