@@ -28,7 +28,7 @@ See workflow details in [docs/get-started.md](docs/get-started.md).
 1. **Prepare dependencies** — follow the prerequisites (WSL kernel TC support, Docker, Python) listed in [docs/get-started.md](docs/get-started.md#1-prerequisites).
 2. **Launch a test**:
    ```bash
-   sudo python3 src/start.py -p src/config --containernet=default -t protocol-ci-test.yaml:test1
+   sudo python3 src/start.py -p test --containernet=default -t protocol-ci-test.yaml:test1
    ```
 3. **Inspect results** — Oasis writes analyzer artifacts per test suite; see [docs/get-started.md](docs/get-started.md#3-test-results) for paths and sample outputs.
 
@@ -40,10 +40,10 @@ See workflow details in [docs/get-started.md](docs/get-started.md).
    ```
 
 2. **define custom YAML descriptions**:
-   - 2.1 Target protocols definition, see example in `src/config/predefined.protocols.yaml`.
-   - 2.2 Network topology definition, see example in `src/config/predefined.topologies.yaml`.
-   - 2.3 Docker images definition, see example in `src/config/nested-containernet-config.yaml`.
-   - 2.4 Docker node related configuration, see example in `src/config/predefined.node_config.yaml`.
+   - 2.1 Target protocols definition, see example in `test/predefined.protocols.yaml`.
+   - 2.2 Network topology definition, see example in `test/predefined.topologies.yaml`.
+   - 2.3 Docker images definition, see example in `test/nested-containernet-config.yaml`.
+   - 2.4 Docker node related configuration, see example in `test/predefined.node_config.yaml`.
 
    A recommended file structure could be like below:
 

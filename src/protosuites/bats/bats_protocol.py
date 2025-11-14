@@ -78,7 +78,7 @@ class BATSProtocol(IProtoSuite):
         if hosts_ip_range == "":
             logging.error("Hosts ip range is not set.")
             return False
-        # {g_root_path}src/config/cfg-template/ or {g_root_path}config/cfg-template/
+        # {g_root_path}test/cfg-template/ or {g_root_path}config/cfg-template/
         cfg_template_path = self.config.config_file
         if self.config.config_base_path is None:
             logging.error(

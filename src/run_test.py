@@ -104,15 +104,16 @@ if __name__ == '__main__':
     logging.info("Yaml config path: %s", yaml_config_base_path)
     logging.info("Oasis workspace: %s", oasis_workspace)
     # config_path can be
-    # Not in Oasis workspace:  `{g_root_path}config/`
-    # in Oasis workspace:      `{g_root_path}src/config/`
-    if is_same_path(yaml_config_base_path, f"{oasis_workspace}/src/config/"):
+    # In other project workspace:   `{g_root_path}config/`
+    # in Oasis workspace:           `{g_root_path}test`
+    if is_same_path(yaml_config_base_path, f"{oasis_workspace}/test/"):
         # oasis workspace mapped to `{g_root_path}`
         # no additional mapping is needed since oasis config is already in the path.
         logging.info("No config path mapping is needed.")
-        config_path = f'{g_root_path}src/config/'
+        config_path = f'{g_root_path}test/'
     else:
         # oasis yaml config files mapped to `{g_root_path}config/`
+        # this is for using oasis in outside the oasis workspace
         config_path = f'{g_root_path}config/'
         logging.info(
             "Oasis yaml config files mapped to `%s`.", config_path)

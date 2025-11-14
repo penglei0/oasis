@@ -179,10 +179,10 @@ class NestedContainernet():
                 self.formatted_mounts += f" --mount "\
                     f"type=bind,source={repo_path}/,"\
                     f"target=/containernet/,readonly,bind-propagation=shared "
-        # don't mount if {yaml_base_path} == {oasis_workspace}/src/config/
+        # don't mount if {yaml_base_path} == {oasis_workspace}/test/
         logging.info("Yaml config path: %s", self.yaml_base_path)
         logging.info("Oasis workspace: %s", self.oasis_workspace)
-        if is_same_path(self.yaml_base_path, f"{self.oasis_workspace}/src/config"):
+        if is_same_path(self.yaml_base_path, f"{self.oasis_workspace}/test/"):
             logging.info(
                 "NestedContainernet:: No config path mapping is needed.")
         else:

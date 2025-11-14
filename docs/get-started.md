@@ -40,8 +40,8 @@ For Windows platform, WSL with traffic control (tc) support is required. Please 
  When using `--containernet=default`, build the Docker image with the following commands:
 
 ```bash
-cd src/config/containernet-docker-official && docker build -t containernet:latest .
-cd src/config/protocol-docker-azure && docker build -t ubuntu:22.04 .
+cd test/containernet-docker-official && docker build -t containernet:latest .
+cd test/protocol-docker-azure && docker build -t ubuntu:22.04 .
 ```
 
 ### For windows platform: WSL kernel recompile
@@ -81,13 +81,13 @@ The following command will run `src/run_test.py` in a nested containernet enviro
 
 ```bash
 # in the root directory of oasis project
-sudo python3 src/start.py -p src/config --containernet=default -t protocol-ci-test.yaml:test2
+sudo python3 src/start.py -p test --containernet=default -t protocol-ci-test.yaml:test2
 
 # Or use the helper script
 ./src/tools/run_test.sh protocol-ci-test.yaml:test2 --cleanup
 ```
 
-`src/config` is the directory containing all the YAML configuration files. Oasis will search for `nested-containernet-config.yaml`, `protocol-ci-test.yaml` in this folder. This folder can be customized according to the location of Oasis repository.
+`test/` is the directory containing all the YAML configuration files. Oasis will search for `nested-containernet-config.yaml`, `protocol-ci-test.yaml` in this folder. This folder can be customized according to the location of Oasis repository.
 
 `--containernet=default` specifies the official Containernet configuration which is defined in `nested-containernet-config.yaml`.
 
@@ -104,7 +104,7 @@ In `protocol-ci-test.yaml`, the network topology of the case `test2` is defined 
       config_file: predefined.topology.yaml
 ```
 
-The case `test2` will use the `linear_network_1` topology defined in `config/predefined.topology.yaml`. And `linear_network_1` is defined as follows:
+The case `test2` will use the `linear_network_1` topology defined in `predefined.topology.yaml`. And `linear_network_1` is defined as follows:
 
 ```yaml
 - name: linear_network_1
@@ -137,10 +137,10 @@ For other complex topologies, we should use `json_description` to define the top
   - name: 4-hops-linear-network
     topology_type: linear
     nodes: 5
-    json_description: config/4-hops-linear-network.json
+    json_description: 4-hops-linear-network.json
 ```
 
-"json_description" of `config/4-hops-linear-network.json` uses adjacent matrices to describe the network topology and its link attributions which is quite easy to understand.
+"json_description" of `4-hops-linear-network.json` uses adjacent matrices to describe the network topology and its link attributions which is quite easy to understand.
 
 ### 2.2 Change test tools parameters
 
@@ -278,7 +278,7 @@ When evaluating multiple target protocols, we can set `execution_mode` to `paral
 
 ### 4.3 Update files of each docker container
 
-Either `src/config/rootfs/` or `{config_folder}/rootfs/`(specified by `-p {config_folder}` in the `src/run_test.py` command) folder contains the necessary files which will be copied to the root file system of the docker container when starting the container. This is useful when we want to update some configuration files or add some custom tools to the docker container.
+Either `test/rootfs/` or `{config_folder}/rootfs/`(specified by `-p {config_folder}` in the `src/run_test.py` command) folder contains the necessary files which will be copied to the root file system of the docker container when starting the container. This is useful when we want to update some configuration files or add some custom tools to the docker container.
 
 ### 4.4 Initialization script for each docker container
 
