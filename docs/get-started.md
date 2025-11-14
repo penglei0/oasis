@@ -37,7 +37,7 @@ For Windows platform, WSL with traffic control (tc) support is required. Please 
 
 ### For Linux platform: Build docker image
 
- When using `--containernet=official`, build the Docker image with the following commands:
+ When using `--containernet=default`, build the Docker image with the following commands:
 
 ```bash
 cd src/config/containernet-docker-official && docker build -t containernet:latest .
@@ -81,7 +81,7 @@ The following command will run `src/run_test.py` in a nested containernet enviro
 
 ```bash
 # in the root directory of oasis project
-sudo python3 src/start.py -p src/config --containernet=official -t protocol-ci-test.yaml:test2
+sudo python3 src/start.py -p src/config --containernet=default -t protocol-ci-test.yaml:test2
 
 # Or use the helper script
 ./src/tools/run_test.sh protocol-ci-test.yaml:test2 --cleanup
@@ -89,7 +89,7 @@ sudo python3 src/start.py -p src/config --containernet=official -t protocol-ci-t
 
 `src/config` is the directory containing all the YAML configuration files. Oasis will search for `nested-containernet-config.yaml`, `protocol-ci-test.yaml` in this folder. This folder can be customized according to the location of Oasis repository.
 
-`--containernet=official` specifies the official Containernet configuration which is defined in `nested-containernet-config.yaml`.
+`--containernet=default` specifies the official Containernet configuration which is defined in `nested-containernet-config.yaml`.
 
 `-t protocol-ci-test.yaml` specifies the test case file, which is a YAML file defining the test case. By default, it tries to execute all the test cases in that file. To execute a specific test case, use `-t protocol-ci-test.yaml:test_name`.
 

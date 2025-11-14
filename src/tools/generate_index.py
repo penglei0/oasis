@@ -37,7 +37,6 @@ def render_throughput_table(md: str, topo_map):
     Parse the markdown throughput table and render an HTML table.
     Link each numeric cell to corresponding topology anchor if found.
     """
-    import re
     lines = [ln.strip() for ln in md.splitlines() if ln.strip()]
     table_lines = [ln for ln in lines if ln.startswith("|")]
     if not table_lines:
@@ -193,7 +192,6 @@ def generate_index(base_dir: str):
 
     index_path = base / "index.html"
     tops = collect_topologies(base)
-    root_files = gather_root_logs(base)
     throughput_md = base / "throughput_latency_loss.md"
     md_content = ""
     if throughput_md.exists():
@@ -227,14 +225,12 @@ def generate_index(base_dir: str):
         # show topology name with an inline short summary (first non-empty line)
         desc = ""
         desc_file = t / "topology_description.txt"
-        short = ""
         if desc_file.exists():
             desc = read_text_file(desc_file)
             # extract first non-empty line as short summary
             for ln in desc.splitlines():
                 s = ln.strip()
                 if s:
-                    short = s
                     break
         m = re.match(r'^topology-(\d+)$', t.name)
         if m:
@@ -242,12 +238,8 @@ def generate_index(base_dir: str):
             display_name = f"{num}. topology"
         else:
             display_name = t.name
-        if short:
-            html_lines.append(
-                f"<h2 id='{html.escape(display_name)}'>{html.escape(display_name)}</h2>")
-        else:
-            html_lines.append(
-                f"<h2 id='{html.escape(display_name)}'>{html.escape(display_name)}</h2>")
+        html_lines.append(
+            f"<h2 id='{html.escape(display_name)}'>{html.escape(display_name)}</h2>")
         # if full description exists and has more than the short line, show it (no extra heading)
         html_lines.append("<h3>Description</h3>")
         if desc:
