@@ -77,25 +77,25 @@ sudo tc qdisc add dev eth0 root netem loss 10%  # add 10% packet drop rate to et
 
 ## 2. Run test
 
-The following command will run `src/run_test.py` in a nested containernet environment, and `run_test.py` will execute the test case defined in `protocol-performance-comparison.yaml`.
+The following command will run `src/run_test.py` in a nested containernet environment, and `run_test.py` will execute the test case defined in `protocol-ci-test.yaml`.
 
 ```bash
 # in the root directory of oasis project
-sudo python3 src/start.py -p src/config --containernet=official -t protocol-performance-comparison.yaml:test2
+sudo python3 src/start.py -p src/config --containernet=official -t protocol-ci-test.yaml:test2
 
 # Or use the helper script
-./src/tools/run_test.sh protocol-performance-comparison.yaml:test2 --cleanup
+./src/tools/run_test.sh protocol-ci-test.yaml:test2 --cleanup
 ```
 
-`src/config` is the directory containing all the YAML configuration files. Oasis will search for `nested-containernet-config.yaml`, `protocol-performance-comparison.yaml` in this folder. This folder can be customized according to the location of Oasis repository.
+`src/config` is the directory containing all the YAML configuration files. Oasis will search for `nested-containernet-config.yaml`, `protocol-ci-test.yaml` in this folder. This folder can be customized according to the location of Oasis repository.
 
 `--containernet=official` specifies the official Containernet configuration which is defined in `nested-containernet-config.yaml`.
 
-`-t protocol-performance-comparison.yaml` specifies the test case file, which is a YAML file defining the test case. By default, it tries to execute all the test cases in that file. To execute a specific test case, use `-t protocol-performance-comparison.yaml:test_name`.
+`-t protocol-ci-test.yaml` specifies the test case file, which is a YAML file defining the test case. By default, it tries to execute all the test cases in that file. To execute a specific test case, use `-t protocol-ci-test.yaml:test_name`.
 
 ### 2.1 Change topology parameters
 
-In `protocol-performance-comparison.yaml`, the network topology of the case `test2` is defined in the `topology` section:
+In `protocol-ci-test.yaml`, the network topology of the case `test2` is defined in the `topology` section:
 
 ```yaml
    test2:

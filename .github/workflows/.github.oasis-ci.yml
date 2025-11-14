@@ -103,7 +103,7 @@ jobs:
         run: |
           python3 ./src/start.py -p src/config \
           --containernet=official \
-          -t protocol-single-hop-test.yaml
+          -t protocol-ci-test.yaml
           if [ ! -f ${{github.workspace}}/test.success ]; then
             echo "oasis test failed"
             exit 1

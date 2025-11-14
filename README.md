@@ -28,7 +28,7 @@ See workflow details in [docs/get-started.md](docs/get-started.md).
 1. **Prepare dependencies** — follow the prerequisites (WSL kernel TC support, Docker, Python) listed in [docs/get-started.md](docs/get-started.md#1-prerequisites).
 2. **Launch a test**:
    ```bash
-   sudo python3 src/start.py -p src/config --containernet=official -t protocol-performance-comparison.yaml:test2
+   sudo python3 src/start.py -p src/config --containernet=official -t protocol-ci-test.yaml:test1
    ```
 3. **Inspect results** — Oasis writes analyzer artifacts per test suite; see [docs/get-started.md](docs/get-started.md#3-test-results) for paths and sample outputs.
 
@@ -55,28 +55,29 @@ See workflow details in [docs/get-started.md](docs/get-started.md).
          ├── predefined.node_config.yaml      # your custom node config
          ├── predefined.protocols.yaml        # your custom protocols definition
          ├── predefined.topology.yaml         # your custom topology definition
-         ├── your_test_cases.yaml    # your custom test cases definition
-         ├── rootfs/                          # your custom rootfs files which will be updated to the running containers
+         ├── your_test_cases.yaml             # your custom test cases definition
+         ├── rootfs/                          # your custom rootfs files which will be updated 
+                                              # to the running containers
 
    ```
 
 3. **run your tests**:
 
-```bash
-sudo python3 oasis/src/start.py -p test --containernet=custom -t your_test_cases.yaml:test_1
-```
+   ```bash
+   sudo python3 oasis/src/start.py -p test --containernet=custom -t your_test_cases.yaml:test_1
+   ```
 
 4. **run your tests with helper script**:
 
-```bash
-./src/tools/run_test.sh your_test_cases.yaml:test_1 --cleanup
-```
+   ```bash
+   ./src/tools/run_test.sh your_test_cases.yaml:test_1 --cleanup
+   ```
 
-`run_test.sh` assumes your custom config files are in the `test/` folder. The `--cleanup` flag will remove all the generated logs after the test is done.
+   `run_test.sh` assumes your custom config files are in the `test/` folder. The `--cleanup` flag will remove all the generated logs after the test is done.
 
 5. **check results**
 
-Oasis will create a folder `oasis_src/test_results/` in your current working directory to store all the test results based the name of your test case.
+   Oasis will create a folder `oasis_src/test_results/` in your current working directory to store all the test results based the name of your test case.
 
 ## Additional docs
 
