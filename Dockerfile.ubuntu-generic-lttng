@@ -1,4 +1,4 @@
-FROM gitlab.app.n-hop.com:5005/dependencies/oasis/ubuntu-generic:latest
+FROM ubuntu-generic:latest
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN set -eux; \

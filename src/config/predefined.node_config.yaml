@@ -1,15 +1,4 @@
 node_config:
-  - name: n_hop
-    img: gitlab.app.n-hop.com:5005/dependencies/oasis/ubuntu-generic:latest
-    vols:
-      - "/var/run/docker.sock:/var/run/docker.sock"
-      - "/nix/store:/nix/store:ro"
-      - "/usr/bin/perf:/usr/bin/perf:ro"
-      - "/lib/modules/:/lib/modules/:ro"
-      - "/usr/lib/linux-tools/:/usr/lib/linux-tools/:ro"
-    bind_port: True
-    name_prefix: h
-    ip_range: "10.0.0.0/8"
   - name: default
     img: ubuntu:22.04
     vols:
