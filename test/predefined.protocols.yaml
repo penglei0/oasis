@@ -1,0 +1,67 @@
+protocols:
+  - name: tcp-cubic
+    version: cubic
+    type: distributed
+  - name: tcp-reno
+    version: reno
+    type: distributed
+  - name: tcp-bbr
+    version: bbr
+    type: distributed
+  - name: btp
+    type: distributed
+    bin: bats_protocol
+    args:
+      - "--daemon_enabled=true"
+      - "--api_enabled=true"
+      - "--tun_protocol=BTP"
+    version: latest
+  - name: brtp
+    type: distributed
+    bin: bats_protocol
+    args:
+      - "--daemon_enabled=true"
+      - "--api_enabled=true"
+      - "--tun_protocol=BRTP"
+    version: latest
+  - name: brtp_proxy
+    type: distributed
+    bin: bats_protocol
+    args:
+      - "--daemon_enabled=true"
+      - "--api_enabled=true"
+    version: latest
+  - name: kcp
+    type: none_distributed
+    args: # global args for kcp
+      - "-mode fast3"
+      - "--datashard 10 --parityshard 3 -nocomp"
+      - "-sockbuf 16777217 -dscp 46 --crypt=none"
+    port: 10100 # kcp protocol forward port
+    protocols: # iterative
+      - name: kcp_client
+        bin: client_linux_amd64
+        args:
+          - "-r %s:4000 -l :10100" # %s is the ip of kcp_server
+      - name: kcp_server
+        bin: server_linux_amd64
+        args:
+          - "-l :4000 -t 127.0.0.1:10100" # by default, it forwards the traffic to localhost:10100
+  - name: msquic
+    type: distributed
+    version: bbr
+    bin: secnetperf
+    args:
+      - "-exec:maxtput"
+  - name: btp-next
+    type: none_distributed
+    args:
+      - "-m 0"
+  - name: brtp-next
+    type: none_distributed
+    args:
+      - "-m 1"
+  - name: tcp-next # TCP over TCP.
+    type: none_distributed
+    args:
+      - "-m 10"
