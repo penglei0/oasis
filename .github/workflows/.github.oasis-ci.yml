@@ -74,8 +74,8 @@ jobs:
           docker image load --input ./node_cache/containernet_node.tar
       - name: Loading secrets
         run: |
-          echo "Hardware_info=${{secrets.BATS_HARDWARE_INFO}}" >> ${{github.workspace}}/bats/licence
-          echo "Licence_id=${{secrets.BATS_LICENCE_ID}}" >> ${{github.workspace}}/bats/licence
+          echo "Hardware_info=${{secrets.BATS_HARDWARE_INFO}}" >> ${{github.workspace}}/test/rootfs/etc/cfg/licence
+          echo "Licence_id=${{secrets.BATS_LICENCE_ID}}" >> ${{github.workspace}}/test/rootfs/etc/cfg/licence
       - name: SSHPing tests
         working-directory: ${{github.workspace}}/
         run: |
