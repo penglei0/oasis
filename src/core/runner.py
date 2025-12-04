@@ -572,7 +572,7 @@ class TestRunner:
         test_name = self.test_yml_config['name']
         logging.error("Test %s failed.", test_name)
         # create a regular file to indicate the test failure
-        with open(f"{g_root_path}test.failed", 'w', encoding='utf-8') as f_failed:
+        with open(f"{g_root_path}test_results/test.failed", 'w', encoding='utf-8') as f_failed:
             f_failed.write(f"{test_name}")
         sys.exit(1)
 

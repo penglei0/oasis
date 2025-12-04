@@ -192,6 +192,6 @@ if __name__ == '__main__':
         # # for index, cur_top_ins in enumerate(cur_topology):
     # # for test in loaded_tests:
     # create a regular file to indicate the test success
-    with open(f"{g_root_path}test.success", 'w', encoding='utf-8') as f_success:
+    with open(f"{g_root_path}test_results/test.success", 'w', encoding='utf-8') as f_success:
         f_success.write(f"test.success")
     sys.exit(0)

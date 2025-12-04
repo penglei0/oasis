@@ -18,8 +18,8 @@ oasis_check_failed_mark=' [✗]'
 default_oasis_src_path="oasis_src" # relative path to oasis source code
 default_oasis_test_results_path="$current_base_path"/"$default_oasis_src_path"/test_results
 
-test_failed_flag_file="$current_base_path"/"$default_oasis_src_path"/test.failed
-test_success_flag_file="$current_base_path"/"$default_oasis_src_path"/test.success
+test_failed_flag_file="$current_base_path"/"$default_oasis_src_path"/test_results/test.failed
+test_success_flag_file="$current_base_path"/"$default_oasis_src_path"/test_results/test.success
 tool_extract_data_script=$default_oasis_src_path"/src/tools/extract_data.py"
 tool_generate_index_script=$default_oasis_src_path"/src/tools/generate_index.py"
 is_imported_as_module="False"
@@ -76,8 +76,8 @@ init_default_oasis_src_path() {
 
 init_all_variables() {
     default_oasis_test_results_path="$current_base_path"/"$default_oasis_src_path"/test_results
-    test_failed_flag_file="$current_base_path"/"$default_oasis_src_path"/test.failed
-    test_success_flag_file="$current_base_path"/"$default_oasis_src_path"/test.success
+    test_failed_flag_file="$current_base_path"/"$default_oasis_src_path"/test_results/test.failed
+    test_success_flag_file="$current_base_path"/"$default_oasis_src_path"/test_results/test.success
     tool_extract_data_script=$default_oasis_src_path"/src/tools/extract_data.py"
     tool_generate_index_script=$default_oasis_src_path"/src/tools/generate_index.py"
 }
