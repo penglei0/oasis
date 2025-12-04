@@ -4,7 +4,7 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Usage:
 # 
-# ./tools/run_test.sh protocol-ci-test.yaml:test1
+# ./tools/run_test.sh protocol-ci-test.yaml:test1 --cleanup 
 # Optional args:  --cleanup     # to clean up previous test results
 #                 --skip-copy   # to skip copying the binary files to oasis rootfs
 #
@@ -197,7 +197,7 @@ fi
 
 delete_flag_files
 
-exe_cmd=$has_root_privilege"python3 $default_oasis_src_path/src/start.py -p test --containernet=default -t ${test_yaml_file} ${other_args_for_oasis}"
+exe_cmd=$has_root_privilege"python3 $default_oasis_src_path/src/start.py --containernet=default -t ${test_yaml_file} ${other_args_for_oasis}"
 print_message "Oasis test with command: $exe_cmd" pass
 # Run the test
 $exe_cmd

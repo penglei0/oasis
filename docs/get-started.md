@@ -81,7 +81,7 @@ The following command will run `src/run_test.py` in a nested containernet enviro
 
 ```bash
 # in the root directory of oasis project
-sudo python3 src/start.py -p test --containernet=default -t protocol-ci-test.yaml:test2
+sudo python3 src/start.py --containernet=default -t protocol-ci-test.yaml:test2
 
 # Or use the helper script
 ./src/tools/run_test.sh protocol-ci-test.yaml:test2 --cleanup

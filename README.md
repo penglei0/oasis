@@ -36,14 +36,19 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 
 1. **Prepare dependencies** — follow the prerequisites (WSL kernel TC support, Docker, Python) listed in [docs/get-started.md](docs/get-started.md#1-prerequisites).
 2. **Launch a test**:
+
    ```bash
-   sudo python3 src/start.py -p test --containernet=default -t protocol-ci-test.yaml:test1
+   sudo python3 src/start.py --containernet=default -t protocol-ci-test.yaml:test1
+   # ======= or with the helper script =======
+   ./src/tools/run_test.sh protocol-ci-test.yaml:test1 --cleanup
    ```
+
 3. **Inspect results** — Oasis writes analyzer artifacts per test suite; see [docs/get-started.md](docs/get-started.md#3-test-results) for paths and sample outputs.
 
 ## Import Oasis to your project
 
 1. **add it to your git submodule**:
+
    ```bash
    git submodule add https://github.com/penglei0/oasis.git oasis_src
    ```
@@ -51,8 +56,8 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 2. **define custom YAML descriptions**:
    - 2.1 Target protocols definition, see example in `test/predefined.protocols.yaml`.
    - 2.2 Network topology definition, see example in `test/predefined.topologies.yaml`.
-   - 2.3 Docker images definition, see example in `test/nested-containernet-config.yaml`.
-   - 2.4 Docker node related configuration, see example in `test/predefined.node_config.yaml`.
+   - 2.3 Containernet image definition and its configuration, see example in `test/nested-containernet-config.yaml`.
+   - 2.4 The docker images definition and its configuration for the host nodes in Containernet, see example in `test/predefined.node_config.yaml`.
 
    A recommended file structure could be like below:
 
@@ -72,8 +77,10 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 3. **run your tests**:
 
    ```bash
-   sudo python3 oasis/src/start.py -p test --containernet=custom -t your_test_cases.yaml:test_1
+   sudo python3 oasis_src/src/start.py --containernet=customized_example -t your_test_cases.yaml:test_1
    ```
+
+   `customized_example` is the image which is defined in `test/nested-containernet-config.yaml`.
 
 4. **run your tests with helper script**:
 
