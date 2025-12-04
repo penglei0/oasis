@@ -39,7 +39,7 @@ def parse_args():
                         help='base path of all the YAML files',
                         dest='yaml_base_path',
                         type=str,
-                        default="")
+                        default="test")
     parser.add_argument('-d',
                         help='enable debug mode',
                         dest='debug_log',
