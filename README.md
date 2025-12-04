@@ -14,6 +14,15 @@ Oasis is a Containernet-based network emulation platform for validating transpor
 <img src="./docs/imgs/oasis_arch.svg" alt="Oasis" style="zoom:50%;"></div>
 <div align="center">Fig 1.1 Oasis architecture brief view</div>
 
+Workflow of a Oasis test is orchestrated by several key components:
+
+- construct a `INetwork` with a given yaml configuration which describes the network topology.
+- load `ITestSuite`(the test tool) from yaml configuration.
+- load `IProtoSuite`(the target test protocol) from yaml configuration.
+- run `IProtoSuite` on `INetwork`.
+- perform the test with `ITestSuite` on `INetwork`.
+- read/generate test results by `IDataAnalyzer`.
+
 ## Capabilities
 
 - Compose multi-hop network topologies with customizable latency, bandwidth, and loss.
@@ -21,7 +30,7 @@ Oasis is a Containernet-based network emulation platform for validating transpor
 - Run throughput, latency, RTT, SCP transfer, and flow-competition tests using reusable YAML definitions.
 - Collect logs plus analyzer outputs (SVG charts, stats) through the integrated data pipeline.
 
-See workflow details in [docs/get-started.md](docs/get-started.md).
+See getting started guide in [docs/get-started.md](docs/get-started.md) for more details.
 
 ## Using Oasis
 
