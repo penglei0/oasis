@@ -51,14 +51,14 @@ jobs:
       - name: Build containernet
         if: steps.cache-containernet-image.outputs.cache-hit != 'true'
         run: |
-          cd ${{github.workspace}}/src/config/containernet-docker-official && docker build -t containernet:latest .
+          cd ${{github.workspace}}/test/containernet-docker-official && docker build -t containernet:latest .
           mkdir -p ${{github.workspace}}/containernet_cache/
           docker image save containernet:latest --output ${{github.workspace}}/containernet_cache/containernet.tar
           docker images
       - name: Build containernet node
         if: steps.cache-node-image.outputs.cache-hit != 'true'
         run: |
-          cd ${{github.workspace}}/src/config/protocol-docker-azure && docker build -t ubuntu:22.04 .
+          cd ${{github.workspace}}/test/protocol-docker-azure && docker build -t ubuntu:22.04 .
           mkdir -p ${{github.workspace}}/node_cache/
           docker image save ubuntu:22.04 --output ${{github.workspace}}/node_cache/containernet_node.tar
           docker images
@@ -79,9 +79,7 @@ jobs:
       - name: SSHPing tests
         working-directory: ${{github.workspace}}/
         run: |
-          python3 ./src/start.py -p src/config \
-          --containernet=official \
-          -t protocol-sshping-test.yaml
+          python3 ./src/start.py -p test --containernet=default -t protocol-sshping-test.yaml
           if [ ! -f ${{github.workspace}}/test.success ]; then
             echo "oasis test failed"
             exit 1
@@ -90,9 +88,7 @@ jobs:
       - name: SCP test
         working-directory: ${{github.workspace}}/
         run: |
-          python3 ./src/start.py -p src/config \
-          --containernet=official \
-          -t protocol-scp-test.yaml -d True
+          python3 ./src/start.py -p test --containernet=default -t protocol-scp-test.yaml -d True
           if [ ! -f ${{github.workspace}}/test.success ]; then
             echo "oasis test failed"
             exit 1
@@ -101,9 +97,7 @@ jobs:
       - name: Throughput tests
         working-directory: ${{github.workspace}}/
         run: |
-          python3 ./src/start.py -p src/config \
-          --containernet=official \
-          -t protocol-single-hop-test.yaml
+          python3 ./src/start.py -p test --containernet=default -t protocol-ci-test.yaml
           if [ ! -f ${{github.workspace}}/test.success ]; then
             echo "oasis test failed"
             exit 1

@@ -1,13 +1,12 @@
-[![Oasis CI](https://github.com/n-hop/oasis/actions/workflows/.github.oasis-ci.yml/badge.svg)](https://github.com/n-hop/oasis/actions/workflows/.github.oasis-ci.yml)
-[![CodeQL Pylint Unittest](https://github.com/n-hop/oasis/actions/workflows/.github.ci.yml/badge.svg)](https://github.com/n-hop/oasis/actions/workflows/.github.ci.yml)
+[![Oasis CI](https://github.com/penglei0/oasis/actions/workflows/.github.oasis-ci.yml/badge.svg)](https://github.com/penglei0/oasis/actions/workflows/.github.oasis-ci.yml)
+[![CodeQL Pylint Unittest](https://github.com/penglei0/oasis/actions/workflows/.github.ci.yml/badge.svg)](https://github.com/penglei0/oasis/actions/workflows/.github.ci.yml)
 
 -----
 
 # Oasis
 
-Oasis is a network emulation platform that enables protocol developers to test their protocols in diverse network topologies and conditions.
-
-Oasis is built on [Containernet](https://github.com/containernet/containernet/), a fork of [Mininet](http://mininet.org/), and [Docker](https://www.docker.com/). It offers a web-based user interface for creating and managing testbeds, test cases, and test results. Additionally, it provides a RESTful API for interacting with the DevOps platform. One of the most impressive features of Oasis is its extensive set of components for visualizing and analyzing test results, as well as automatically generating test reports based on provided templates.
+Oasis is a Containernet-based network emulation platform for validating transport protocols across diverse topologies, link qualities, and routing strategies.
+> Oasis is built on [Containernet](https://github.com/containernet/containernet/), a fork of [Mininet](http://mininet.org/), and [Docker](https://www.docker.com/).
 
 ## Architecture
 
@@ -15,48 +14,73 @@ Oasis is built on [Containernet](https://github.com/containernet/containernet/),
 <img src="./docs/imgs/oasis_arch.svg" alt="Oasis" style="zoom:50%;"></div>
 <div align="center">Fig 1.1 Oasis architecture brief view</div>
 
-## Features
+## Capabilities
 
-- **Data Visualization**: Oasis offers numerous components for visualizing test data.
-  - Visualize the TCP throughput over time
-  - Visualize the packet rtt over time
-  - Visualize the rtt distribution
-- **Flexible Architecture**: Oasis can be used for pure software emulation or as a front-end for a series of real testbeds.
-- **Built-in Protocol Support**: Oasis includes extensive built-in protocol support, such as TCP, KCP, and more.
-- **Built-in Dynamic Routing Support**: For complex mesh networks, Oasis offers built-in dynamic routing support.
+- Compose multi-hop network topologies with customizable latency, bandwidth, and loss.
+- Launch built-in protocol suites (BATS™ variants, TCP, KCP, etc.) and plug in your own protocol binaries.
+- Run throughput, latency, RTT, SCP transfer, and flow-competition tests using reusable YAML definitions.
+- Collect logs plus analyzer outputs (SVG charts, stats) through the integrated data pipeline.
 
-## Features in development
+See workflow details in [docs/get-started.md](docs/get-started.md).
 
-- **Testbed**: Instead of using visualize networks provided by Containernet, oasis can use the real testbed to do the protocol testing.
-- **Web-based User Interface**: Users can create, modify, delete, and execute test cases, as well as manage versions of user-defined protocols.
-- **RESTful API**: Users can interact with the DevOps platform through the API.
+## Using Oasis
 
-## Get started
+1. **Prepare dependencies** — follow the prerequisites (WSL kernel TC support, Docker, Python) listed in [docs/get-started.md](docs/get-started.md#1-prerequisites).
+2. **Launch a test**:
+   ```bash
+   sudo python3 src/start.py -p test --containernet=default -t protocol-ci-test.yaml:test1
+   ```
+3. **Inspect results** — Oasis writes analyzer artifacts per test suite; see [docs/get-started.md](docs/get-started.md#3-test-results) for paths and sample outputs.
 
-A simple guide to getting started with Oasis can be found in [Get Started](docs/get-started.md).
+## Import Oasis to your project
 
-## Workflow of Testing
+1. **add it to your git submodule**:
+   ```bash
+   git submodule add https://github.com/penglei0/oasis.git oasis_src
+   ```
 
-A typical workflow of a Oasis test is as follows:
+2. **define custom YAML descriptions**:
+   - 2.1 Target protocols definition, see example in `test/predefined.protocols.yaml`.
+   - 2.2 Network topology definition, see example in `test/predefined.topologies.yaml`.
+   - 2.3 Docker images definition, see example in `test/nested-containernet-config.yaml`.
+   - 2.4 Docker node related configuration, see example in `test/predefined.node_config.yaml`.
 
-  1. construct a `INetwork` with a given yaml configuration which describes the network topology.
-  2. load `ITestSuite`(the test tool) from yaml configuration.
-  3. load `IProtoSuite`(the target test protocol) from yaml configuration.
-  4. run `IProtoSuite` on `INetwork`.
-  5. perform the test with `ITestSuite` on `INetwork`.
-  6. read/generate test results by `IDataAnalyzer`.
+   A recommended file structure could be like below:
 
-## Protocols and Tools
+   ```bash
+   your_project/
+   ├── oasis_src/                  # oasis git submodule
+   ├── test/                       # tests related definition
+       ├── nested-containernet-config.yaml  # your custom containernet docker config
+       ├── predefined.node_config.yaml      # your custom node config
+       ├── predefined.protocols.yaml        # your custom protocols definition
+       ├── predefined.topology.yaml         # your custom topology definition
+       ├── your_test_cases.yaml             # your custom test cases definition
+       ├── rootfs/                          # your custom rootfs files which will be updated 
+                                             # to the running containers
+   ```
 
-Detailed information can be found in [Protocols and Tools](docs/protocols_and_tools.md).
+3. **run your tests**:
 
-## Flow competition test
+   ```bash
+   sudo python3 oasis/src/start.py -p test --containernet=custom -t your_test_cases.yaml:test_1
+   ```
 
-The flow competition test is a test case that evaluates the fairness and the convergence of the target protocol. Detailed information can be found in [Flow Competition Test](docs/flow_competition_test.md).
+4. **run your tests with helper script**:
 
-## Limitations
+   ```bash
+   ./src/tools/run_test.sh your_test_cases.yaml:test_1 --cleanup
+   ```
 
-- **Link latency**: The valid range is 0-200ms; 0ms means no additional latency is added. And the maximum latency of each link is 200ms.
-  The link latency is simulated by the Linux `tc` module, which requires sufficient queuing buffer capacity. If the queuing buffer is not large enough, `tc` module will drop packets under heavy traffic, affecting the accuracy of simulating the link loss rate.
-  
-- **Link bandwidth**: The valid range is 1-4000Mbps. 
+   `run_test.sh` assumes your custom config files are in the `test/` folder. The `--cleanup` flag will remove all the generated logs after the test is done.
+
+5. **check results**
+
+   Oasis will create a folder `oasis_src/test_results/` in your current working directory to store all the test results based the name of your test case.
+
+## Additional docs
+
+- Supported protocols and tools: [docs/protocols_and_tools.md](docs/protocols_and_tools.md)
+- Get started guide: [docs/get-started.md](docs/get-started.md)
+- Flow competition tests example: [docs/flow_competition_test.md](docs/flow_competition_test.md)
+- Traffic shaping strategy: [docs/tc-strategy.md](docs/tc-strategy.md)

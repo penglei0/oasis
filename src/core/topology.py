@@ -141,7 +141,7 @@ class ITopology(ABC):
             json_file_path (string): The path of the Json file 
             which save the matrix.
             An example: 
-                src/config/mesh-network.json
+                test/mesh-network.json
         """
         if json_file_path and not os.path.isabs(json_file_path):
             json_file_path = os.path.join(self.conf_base_path, json_file_path)

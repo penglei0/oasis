@@ -4,7 +4,7 @@ init_ssh() {
     echo "Initializing SSH for the node..."
     rm -rf /root/.ssh/
     mkdir -p /root/.ssh
-    cp /root/oasis/src/config/keys/* /root/.ssh/
+    cp /root/oasis/test/keys/* /root/.ssh/
     cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
     # fix: Permissions 0644 for '/root/.ssh/id_rsa' are too open
     chmod 600 /root/.ssh/id_rsa

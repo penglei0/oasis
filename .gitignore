@@ -95,5 +95,5 @@ id_rsa*
 test_results
 test/
 config/
-!src/config/
+!test//
 !src/test/
