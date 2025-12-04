@@ -88,7 +88,7 @@ class NestedContainernet():
         os.system("docker container prune --force || true")
         files = [".bashrc", ".ssh/", ".vim/"]
         for file in files:
-            os.system(f"rm -rf /root/{file}")
+            os.system(f"rm -rf /root/{file} || true")
         # calculate the time
         end_time = time.time()
         cost_time = (int)(end_time - self.start_time)
