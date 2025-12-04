@@ -78,7 +78,7 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 4. **run your tests with helper script**:
 
    ```bash
-   ./src/tools/run_test.sh your_test_cases.yaml:test_1 --cleanup
+   ./oasis_src/src/tools/run_test.sh your_test_cases.yaml:test_1 --cleanup
    ```
 
    `run_test.sh` assumes your custom config files are in the `test/` folder. The `--cleanup` flag will remove all the generated logs after the test is done.

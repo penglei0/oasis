@@ -85,13 +85,16 @@ sudo python3 src/start.py -p test --containernet=default -t protocol-ci-test.yam
 
 # Or use the helper script
 ./src/tools/run_test.sh protocol-ci-test.yaml:test2 --cleanup
+
+# when Oasis is imported as a git submodule in your project, use the following command
+./oasis_src/src/tools/run_test.sh protocol-ci-test.yaml:test2 --cleanup
 ```
 
 `test/` is the directory containing all the YAML configuration files. Oasis will search for `nested-containernet-config.yaml`, `protocol-ci-test.yaml` in this folder. This folder can be customized according to the location of Oasis repository.
 
 `--containernet=default` specifies the official Containernet configuration which is defined in `nested-containernet-config.yaml`.
 
-`-t protocol-ci-test.yaml` specifies the test case file, which is a YAML file defining the test case. By default, it tries to execute all the test cases in that file. To execute a specific test case, use `-t protocol-ci-test.yaml:test_name`.
+`-t protocol-ci-test.yaml` specifies the test case file, which is a YAML file defining the test case. By default, it tries to execute all     the test cases in that file. To execute a specific test case, use `-t protocol-ci-test.yaml:test_name`.
 
 ### 2.1 Change topology parameters
 
