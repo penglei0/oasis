@@ -26,6 +26,7 @@
       "action.yml"
     ]
   },
+  "autopep8.args": ["--in-place", "--max-line-length=120", "--aggressive"],
   "pylint.args": ["--rcfile=${workspaceFolder}/.pylintrc"],
   "cSpell.words": [
     "BANDW",
@@ -57,5 +58,8 @@
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.autoImportCompletions": true,
   "svg.preview.background": "white",
-  "markdown-preview-github-styles.colorTheme": "light"
+  "markdownlint.configFile": ".markdownlint.json",
+  "markdown-preview-github-styles.colorTheme": "light",
+  "markdown.validate.enabled": true,
+  "markdown.updateLinksOnFileMove.enabled": "prompt"
 }

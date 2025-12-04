@@ -127,7 +127,7 @@ def md_table_to_html(md: str) -> str:
         header = rows[0]
         html_table.append(
             "<thead><tr>{}</tr></thead>".format("".join(f"<th>{html.escape(h)}</th>" for h in header)))
-        body_rows = rows[sep_idx+1:]
+        body_rows = rows[sep_idx + 1:]
 
     html_table.append("<tbody>")
     for r in body_rows:
@@ -207,7 +207,10 @@ def generate_index(base_dir: str):
     html_lines.append("<html lang='en'><head><meta charset='utf-8'>")
     html_lines.append(
         "<title>Test results index: {}</title>".format(html.escape(base.name)))
-    html_lines.append("<style>body{font-family:Segoe UI,Arial,Helvetica,sans-serif;margin:20px}h1,h2{color:#003366}pre{background:#f7f7f7;padding:10px;border-radius:4px;overflow:auto}table{border-collapse:collapse;width:100%}th,td{padding:6px;border:1px solid #ddd;text-align:left}a.small{font-size:0.9em;color:#0066cc}</style>")
+    html_lines.append("<style>body{font-family:Segoe UI,Arial,Helvetica,sans-serif;margin:20px}h1,h2{color:#003366}"
+                      "pre{background:#f7f7f7;padding:10px;border-radius:4px;overflow:auto}table{border-collapse:col"
+                      "lapse;width:100%}th,td{padding:6px;border:1px solid #ddd;text-align:left}a.small{font-size:0."
+                      "9em;color:#0066cc}</style>")
     html_lines.append("</head><body>")
 
     # throughput_md section - render with links to topologies

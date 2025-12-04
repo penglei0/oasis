@@ -4,6 +4,10 @@
     "ms-python.autopep8",
     "streetsidesoftware.code-spell-checker",
     "ms-python.pylint",
-    "yzhang.markdown-all-in-one"
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    "bierner.markdown-preview-github-styles",
+    "bierner.markdown-yaml-preamble",
+    "ms-vscode.live-server"
   ]
 }
