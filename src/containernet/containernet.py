@@ -67,7 +67,7 @@ class NestedContainernet():
         result = os.popen(cmd).read()
         if int(result) > 0:
             logging.warning("Warning: there are leaked mounts. %s", result)
-            cmd = "grep -i 'oasis' /proc/mounts | awk '{print $2}' | xargs -I {} sudo umount \"{}\""
+            cmd = "grep -i 'oasis' /proc/mounts | awk '{print $2}' | xargs -I {} sudo umount {}"
             os.system(cmd)
 
     def setUp(self) -> None:
