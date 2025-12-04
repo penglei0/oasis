@@ -45,7 +45,7 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 
 ## Import Oasis to your project
 
-1. **add it to your git submodule**:
+1. **import it as git-submodule**:
 
    ```bash
    git submodule add https://github.com/penglei0/oasis.git oasis_src
@@ -75,7 +75,7 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 3. **run tests with the helper script**:
 
    ```bash
-   ./oasis_src/src/tools/run_test.sh your_test_cases.yaml:test_1 --cleanup
+   ./oasis_src/src/tools/run_test.sh your_test_cases.yaml:test198964 --cleanup
    ```
 
    `run_test.sh` assumes your custom config files are in the `test/` folder. The `--cleanup` flag will remove all the generated logs after the test is done.
