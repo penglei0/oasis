@@ -29,20 +29,23 @@ git clone https://github.com/penglei0/oasis.git
 git lfs fetch --all
 ```
 
-For Linux platform, uses the instructions in [Build docker image](#build-docker-image) to build the docker image before running the test.
-
-For Windows platform, WSL with traffic control (tc) support is required. Please follow the instructions in [WSL kernel recompile](#wsl-kernel-recompile) to recompile the WSL kernel with tc support.
-
 > Note: Highly recommend to use Oasis with Ubuntu 22.04.
 
 ### For Linux platform: Build docker image
 
- When using `--containernet=default`, build the Docker image with the following commands:
+The required docker images are defined in `test/predefined.node_config.yaml` and `test/nested-containernet-config.yaml`.
+
+`test/nested-containernet-config.yaml` lists the available Containernet images and its configuration; `test/predefined.node_config.yaml` lists the available docker images for the host nodes in Containernet and its configuration.
 
 ```bash
+# To build the official Containernet image
 cd test/containernet-docker-official && docker build -t containernet:latest .
+
+# To build the ubuntu 22.04 image for host nodes in Containernet
 cd test/protocol-docker-azure && docker build -t ubuntu:22.04 .
 ```
+
+when using `src/start.py` to lunch a test, the option `--containernet=default` specifies the image to use and `node_config` section in the test case YAML (e.g., `test/protocol-ci-test.yaml`)    specifies the docker images for host nodes in Containernet.
 
 ### For windows platform: WSL kernel recompile
 

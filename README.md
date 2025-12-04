@@ -38,8 +38,6 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 2. **Launch a test**:
 
    ```bash
-   sudo python3 src/start.py --containernet=default -t protocol-ci-test.yaml:test1
-   # ======= or with the helper script =======
    ./src/tools/run_test.sh protocol-ci-test.yaml:test1 --cleanup
    ```
 
@@ -74,15 +72,7 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
                                              # to the running containers
    ```
 
-3. **run your tests**:
-
-   ```bash
-   sudo python3 oasis_src/src/start.py --containernet=customized_example -t your_test_cases.yaml:test_1
-   ```
-
-   `customized_example` is the image which is defined in `test/nested-containernet-config.yaml`.
-
-4. **run your tests with helper script**:
+3. **run tests with the helper script**:
 
    ```bash
    ./oasis_src/src/tools/run_test.sh your_test_cases.yaml:test_1 --cleanup
@@ -90,7 +80,7 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 
    `run_test.sh` assumes your custom config files are in the `test/` folder. The `--cleanup` flag will remove all the generated logs after the test is done.
 
-5. **check results**
+4. **check results**
 
    Oasis will create a folder `oasis_src/test_results/` in your current working directory to store all the test results based the name of your test case.
 
