@@ -6,7 +6,7 @@ containernet:
     init_script: init_node.sh
 
 tests:
-  test1:
+  test20:
     description: "Test sshping"
     topology:
       config_name: linear_network_1

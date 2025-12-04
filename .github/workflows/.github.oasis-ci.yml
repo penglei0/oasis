@@ -79,29 +79,15 @@ jobs:
       - name: SSHPing tests
         working-directory: ${{github.workspace}}/
         run: |
-          python3 ./src/start.py --containernet=default -t protocol-sshping-test.yaml
-          if [ ! -f ${{github.workspace}}/test.success ]; then
-            echo "oasis test failed"
-            exit 1
-          fi
-          rm -rf ${{github.workspace}}/test.success
+          ./src/tools/run_test.sh protocol-sshping-test.yaml --cleanup --no-privilege
       - name: SCP test
         working-directory: ${{github.workspace}}/
         run: |
-          python3 ./src/start.py --containernet=default -t protocol-scp-test.yaml -d True
-          if [ ! -f ${{github.workspace}}/test.success ]; then
-            echo "oasis test failed"
-            exit 1
-          fi
-          rm -rf ${{github.workspace}}/test.success
+          ./src/tools/run_test.sh protocol-scp-test.yaml --cleanup --no-privilege
       - name: Throughput tests
         working-directory: ${{github.workspace}}/
         run: |
-          python3 ./src/start.py --containernet=default -t protocol-ci-test.yaml
-          if [ ! -f ${{github.workspace}}/test.success ]; then
-            echo "oasis test failed"
-            exit 1
-          fi
+          ./src/tools/run_test.sh protocol-ci-test.yaml --cleanup --no-privilege
       - name: Upload test logs
         uses: actions/upload-artifact@v4
         continue-on-error: true
