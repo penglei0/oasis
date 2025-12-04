@@ -140,6 +140,12 @@ if __name__ == '__main__':
 
     is_using_testbed = False
     cur_hosts_config = None
+    """
+    Initialize the network manager.
+    There are two types of network managers:
+        1. Containernet-based network manager
+        2. Testbed-based network manager (can be a network which consists of physical machines or VMs)
+    """
     network_manager = None
     if not is_using_testbed:
         logging.info("##### running tests on containernet.")
@@ -165,14 +171,14 @@ if __name__ == '__main__':
         logging.error("Error: no test case found.")
         sys.exit(1)
     for test in loaded_tests:
-        cur_topology = test.load_topology(config_path)
-        if not cur_topology:
+        loaded_topologies = test.load_topology(config_path)
+        if not loaded_topologies:
             logging.error(
-                "Error: failed to load topology for test %s", test.name)
+                "Error: failed to load a topology for test %s", test.name)
             continue
         # 1.1 The topology in one case can be composed of multiple topologies:
         #      Traverse all the topologies in the test case.
-        for index, cur_top_ins in enumerate(cur_topology):
+        for index, cur_top_ins in enumerate(loaded_topologies):
             test_runner = TestRunner(test.yaml(), config_path, network_manager)
             test_runner.init(cur_hosts_config, cur_top_ins)
             if not test_runner.is_ready():
@@ -189,7 +195,7 @@ if __name__ == '__main__':
             res = test_runner.handle_test_results(index)
             if res is False:
                 test_runner.handle_failure()
-        # # for index, cur_top_ins in enumerate(cur_topology):
+        # # for index, cur_top_ins in enumerate(loaded_topologies):
     # # for test in loaded_tests:
     # create a regular file to indicate the test success
     with open(f"{g_root_path}test_results/test.success", 'w', encoding='utf-8') as f_success:
