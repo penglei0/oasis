@@ -216,6 +216,15 @@ print_message "#################################################################
 
 delete_flag_files
 
+# test results processing may fail due to permission issues, so we add `sudo` when needed
+is_root=$(whoami)
+if [ "$is_root" != "root" ]; then
+    has_root_privilege="sudo "
+else
+    has_root_privilege=""
+fi
+print_message "Processing test results with privilege: '$has_root_privilege' '$is_root'" pass
+
 # TODO(.): do some processing of test results
 # e.g., extract data from log files, generate index.html, etc.
 if [ -f $tool_extract_data_script ]; then

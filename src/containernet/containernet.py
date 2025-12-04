@@ -77,18 +77,24 @@ class NestedContainernet():
         self.formatted_mounts = self.get_formatted_mnt()
 
     def tearDown(self) -> None:
-        logging.info(
-            "NestedContainernet tearDown the Containernet.")
         # os.system(
         #    "docker stop $(docker ps -a -q "
         #    f"-fname=mn) || true")
+        privilege_str = ""
+        is_root = os.popen("whoami").read().strip() == "root"
+        if not is_root:
+            privilege_str = "sudo "
+        logging.info(
+            "NestedContainernet tearDown with privilege_str: %s",
+            privilege_str)
+        os.system(f"{privilege_str}docker container prune --force || true")
         os.system(
-            "docker stop $(docker ps -a -q "
+            f"{privilege_str}docker stop $(docker ps -a -q "
             f"-fname={self.test_container_name}) || true")
-        os.system("docker container prune --force || true")
+        os.system(f"{privilege_str}docker container prune --force || true")
         files = [".bashrc", ".ssh/", ".vim/"]
         for file in files:
-            os.system(f"rm -rf /root/{file} || true")
+            os.system(f"{privilege_str}rm -rf /root/{file} || true")
         # calculate the time
         end_time = time.time()
         cost_time = (int)(end_time - self.start_time)
