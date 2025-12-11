@@ -49,7 +49,7 @@ def load_containernet_config(mapped_config_path, yaml_test_file, source_workspac
         sys.exit(1)
     # mount the workspace
     node_config.vols.append(f'{source_workspace}:{g_root_path}')
-    if mapped_config_path == f'{g_root_path}config/':
+    if mapped_config_path == f'{g_root_path}user/':
         node_config.vols.append(
             f'{original_config_path}:{mapped_config_path}')
     return node_config
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     logging.info("Yaml config path: %s", yaml_config_base_path)
     logging.info("Oasis workspace: %s", oasis_workspace)
     # config_path can be
-    # In other project workspace:   `{g_root_path}config/`
+    # In Users' project workspace:   `{g_root_path}user/`
     # in Oasis workspace:           `{g_root_path}test`
     if is_same_path(yaml_config_base_path, f"{oasis_workspace}/test/"):
         # oasis workspace mapped to `{g_root_path}`
@@ -112,11 +112,11 @@ if __name__ == '__main__':
         logging.info("No config path mapping is needed.")
         config_path = f'{g_root_path}test/'
     else:
-        # oasis yaml config files mapped to `{g_root_path}config/`
+        # oasis yaml config files mapped to `{g_root_path}user/`
         # this is for using oasis in outside the oasis workspace
-        config_path = f'{g_root_path}config/'
+        config_path = f'{g_root_path}user/'
         logging.info(
-            "Oasis yaml config files mapped to `%s`.", config_path)
+           f"Oasis yaml config files `%s` mapped to `%s`.", yaml_config_base_path, config_path)
     oasis_mapped_prefix = f'{g_root_path}'
     logging.info(
         f"run_test.py: Base path of the oasis project: %s", oasis_workspace)

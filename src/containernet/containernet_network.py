@@ -177,6 +177,7 @@ class ContainerizedNetwork (INetwork):
         # from oasis means it is mapped with oasis workspace
         root_fs_from_oasis = g_oasis_root_fs
         # from user means it is mapped by `-p config_folder`
+        logging.info("INetwork config_base_path %s", self.config_base_path)
         root_fs_from_user = f"{self.config_base_path}rootfs"
         # root_fs_from_user and root_fs_from_oasis may be the same
         is_same_root_fs = is_same_path(

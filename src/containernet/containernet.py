@@ -188,16 +188,17 @@ class NestedContainernet():
         # don't mount if {yaml_base_path} == {oasis_workspace}/test/
         logging.info("Yaml config path: %s", self.yaml_base_path)
         logging.info("Oasis workspace: %s", self.oasis_workspace)
+        # in some cases, `yaml_base_path` is set by Users.
         if is_same_path(self.yaml_base_path, f"{self.oasis_workspace}/test/"):
             logging.info(
                 "NestedContainernet:: No config path mapping is needed.")
         else:
-            # 2. mount yaml_base_path directory to {g_root_path}config/
+            # 2. mount yaml_base_path directory to {g_root_path}user/
             self.formatted_mounts += f"--mount "\
                 f"type=bind,source={self.yaml_base_path},"\
-                f"target={g_root_path}config/,bind-propagation=shared "
+                f"target={g_root_path}user/,bind-propagation=shared "
             logging.info(
-                "NestedContainernet:: Oasis yaml config files mapped to `{g_root_path}config/`.")
+                "NestedContainernet:: Oasis yaml config files base path %s mapped to `%s/user/`.", self.yaml_base_path, g_root_path)
             logging.info(
                 "NestedContainernet:: yaml_base_path %s,"
                 "oasis_workspace%s", self.yaml_base_path, self.oasis_workspace)
