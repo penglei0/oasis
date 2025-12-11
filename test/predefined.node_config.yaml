@@ -1,6 +1,6 @@
 node_config:
   - name: default
-    img: ubuntu:22.04
+    img: ubuntu-generic:latest
     vols:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "/usr/bin/perf:/usr/bin/perf:ro"
