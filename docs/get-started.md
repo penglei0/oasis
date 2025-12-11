@@ -39,10 +39,10 @@ The required docker images are defined in `test/predefined.node_config.yaml` and
 
 ```bash
 # To build the official Containernet image
-cd test/containernet-docker-official && docker build -t containernet:latest .
+sudo docker build -t  containernet:latest -f Dockerfile.containernet .
 
 # To build the ubuntu 22.04 image for host nodes in Containernet
-cd test/protocol-docker-azure && docker build -t ubuntu:22.04 .
+sudo docker build -t ubuntu:22.04 -f Dockerfile.ubuntu-generic .
 ```
 
 when using `src/start.py` to lunch a test, the option `--containernet=default` specifies the image to use and `node_config` section in the test case YAML (e.g., `test/protocol-ci-test.yaml`)    specifies the docker images for host nodes in Containernet.
