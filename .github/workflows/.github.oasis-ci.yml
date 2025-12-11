@@ -36,42 +36,28 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install -r ${{github.workspace}}/src/containernet/requirements.txt
-      - name: Restore Cached Containernet Image
-        id: cache-containernet-image
+      - name: Restore Docker Images
+        id: cached-docker-images
         uses: actions/cache@v4
         with:
-          path: ${{github.workspace}}/containernet_cache/
-          key: docker_cache-${{ hashFiles('**/containernet-docker-official/Dockerfile') }}
-      - name: Restore Cached Node Image
-        id: cache-node-image
-        uses: actions/cache@v4
-        with:
-          path: ${{github.workspace}}/node_cache/
-          key: docker_cache-${{ hashFiles('**/protocol-docker-azure/Dockerfile') }}
-      - name: Build containernet
-        if: steps.cache-containernet-image.outputs.cache-hit != 'true'
-        run: |
-          cd ${{github.workspace}}/test/containernet-docker-official && docker build -t containernet:latest .
-          mkdir -p ${{github.workspace}}/containernet_cache/
-          docker image save containernet:latest --output ${{github.workspace}}/containernet_cache/containernet.tar
-          docker images
-      - name: Build containernet node
-        if: steps.cache-node-image.outputs.cache-hit != 'true'
-        run: |
-          cd ${{github.workspace}}/test/protocol-docker-azure && docker build -t ubuntu:22.04 .
-          mkdir -p ${{github.workspace}}/node_cache/
-          docker image save ubuntu:22.04 --output ${{github.workspace}}/node_cache/containernet_node.tar
-          docker images
-      - name: Load containernet image
+          path: ${{github.workspace}}/images/
+          key: docker_cache-${{ hashFiles('**/Dockerfile.**') }}
+      - name: Build Docker Images
+        if: steps.cached-docker-images.outputs.cache-hit != 'true'
         working-directory: ${{github.workspace}}/
-        if: steps.cache-containernet-image.outputs.cache-hit == 'true'
         run: |
-          docker image load --input ./containernet_cache/containernet.tar
-      - name: Load containernet node image
+          mkdir -p ${{github.workspace}}/images/
+          docker build -t containernet:latest -f Dockerfile.containernet .
+          docker build -t ubuntu-generic:latest -f Dockerfile.ubuntu-generic .
+          docker image save containernet:latest --output ${{github.workspace}}/images/containernet.tar
+          docker image save ubuntu-generic:latest --output ${{github.workspace}}/images/ubuntu-generic.tar
+          docker images
+      - name: Load Docker Images
         working-directory: ${{github.workspace}}/
-        if: steps.cache-node-image.outputs.cache-hit == 'true'
+        if: steps.cached-docker-images.outputs.cache-hit == 'true'
         run: |
-          docker image load --input ./node_cache/containernet_node.tar
+          docker image load --input ./images/containernet.tar
+          docker image load --input ./images/ubuntu-generic.tar
       - name: Loading secrets
         run: |
           echo "Hardware_info=${{secrets.BATS_HARDWARE_INFO}}" >> ${{github.workspace}}/test/rootfs/etc/cfg/licence
