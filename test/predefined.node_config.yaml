@@ -9,3 +9,13 @@ node_config:
     bind_port: True
     name_prefix: h
     ip_range: "10.0.0.0/8"
+  - name: gost
+    img: gogost/gost
+    vols:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/usr/bin/perf:/usr/bin/perf:ro"
+      - "/lib/modules/:/lib/modules/:ro"
+      - "/usr/lib/linux-tools/:/usr/lib/linux-tools/:ro"
+    bind_port: True
+    name_prefix: g
+    ip_range: "10.0.0.0/8"
