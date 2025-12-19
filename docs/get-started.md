@@ -4,6 +4,7 @@ This guide provides simple steps to getting started with Oasis.
 
 - [Get Started](#get-started)
   - [1. Prerequisites](#1-prerequisites)
+    - [prepare python environment](#prepare-python-environment)
     - [For Linux platform: Build docker image](#for-linux-platform-build-docker-image)
     - [For windows platform: WSL kernel recompile](#for-windows-platform-wsl-kernel-recompile)
   - [2. Run test](#2-run-test)
@@ -30,6 +31,19 @@ git lfs fetch --all
 ```
 
 > Note: Highly recommend to use Oasis with Ubuntu 22.04.
+
+### prepare python environment
+
+Install python3:
+
+```bash
+# prepare python environment
+sudo apt install python3 python3-pip
+
+# install python packages.
+python3 -m pip install PyYAML==6.0.1
+```
+
 
 ### For Linux platform: Build docker image
 
