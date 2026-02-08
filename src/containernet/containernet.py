@@ -198,7 +198,8 @@ class NestedContainernet():
                 f"type=bind,source={self.yaml_base_path},"\
                 f"target={g_root_path}user/,bind-propagation=shared "
             logging.info(
-                "NestedContainernet:: Oasis yaml config files base path %s mapped to `%s/user/`.", self.yaml_base_path, g_root_path)
+                "NestedContainernet:: Oasis yaml config files base path %s mapped to `%s/user/`.",
+                self.yaml_base_path, g_root_path)
             logging.info(
                 "NestedContainernet:: yaml_base_path %s,"
                 "oasis_workspace%s", self.yaml_base_path, self.oasis_workspace)
