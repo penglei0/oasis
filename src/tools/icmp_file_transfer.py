@@ -2,12 +2,13 @@
 
 Transfers files through ICMP packets with client/server mode.
 Client splits files into chunks and sends them as ICMP echo requests.
-Server listens for ICMP packets, reassembles file chunks, and sends ACKs.
+Server listens for ICMP packets, writes chunks progressively, and sends ACKs.
 
 Features:
     - Custom ICMP packet identification via magic bytes and ICMP ID field
     - Configurable payload size and sending interval
     - Stop-and-Wait ARQ for reliable delivery with retransmission
+    - Progressive in-order chunk writing on the server side
 """
 
 import struct
@@ -31,6 +32,10 @@ TYPE_METADATA = 0x01
 TYPE_DATA = 0x02
 TYPE_ACK = 0x03
 TYPE_FIN = 0x04
+
+# ICMP types
+ICMP_ECHO_REQUEST = 8
+ICMP_ECHO_REPLY = 0
 
 
 def build_payload(pkt_type, seq_num, data=b''):
@@ -62,10 +67,29 @@ def is_valid_packet(pkt):
     return len(raw) >= HEADER_SIZE and raw[:4] == MAGIC
 
 
-def build_icmp_packet(dest_ip, pkt_type, seq_num, data=b''):
-    """Construct a full ICMP echo request with custom payload."""
+def build_icmp_packet(dest_ip, pkt_type, seq_num, data=b'',
+                      icmp_type=ICMP_ECHO_REQUEST):
+    """Construct a full ICMP packet with custom payload."""
     payload = build_payload(pkt_type, seq_num, data)
-    return IP(dst=dest_ip) / ICMP(type=8, id=ICMP_IDENT) / Raw(load=payload)
+    return (IP(dst=dest_ip)
+            / ICMP(type=icmp_type, id=ICMP_IDENT)
+            / Raw(load=payload))
+
+
+def sanitize_filename(filename):
+    """Sanitize a filename to prevent path traversal attacks.
+
+    Rejects names with path separators or parent references.
+    Returns basename, or None if the name is invalid.
+    """
+    if not filename:
+        return None
+    if '/' in filename or '\\' in filename or '..' in filename:
+        return None
+    name = os.path.basename(filename)
+    if not name:
+        return None
+    return name
 
 
 def encode_metadata(total_chunks, filename):
@@ -82,7 +106,10 @@ def decode_metadata(data):
     if len(data) < 4:
         return None, None
     total_chunks = struct.unpack('!I', data[:4])[0]
-    filename = data[4:].decode('utf-8')
+    try:
+        filename = data[4:].decode('utf-8')
+    except UnicodeDecodeError:
+        return None, None
     return total_chunks, filename
 
 
@@ -184,11 +211,15 @@ class ICMPFileClient:
 
         sniff(filter="icmp", prn=handle_packet,
               stop_filter=lambda _: self.stop_sniff.is_set(),
-              timeout=self.timeout * self.max_retries * 2)
+              store=False)
 
 
 class ICMPFileServer:
-    """Server for receiving files via ICMP packets."""
+    """Server for receiving files via ICMP packets.
+
+    Writes received chunks progressively in order, flushing to disk
+    as soon as all preceding chunks have been received.
+    """
 
     def __init__(self, output_dir='.', timeout=60):
         self.output_dir = output_dir
@@ -196,6 +227,8 @@ class ICMPFileServer:
         self.received_chunks = {}
         self.filename = None
         self.total_chunks = 0
+        self.write_cursor = 1
+        self.output_file = None
         self.stop_event = threading.Event()
 
     def start(self):
@@ -203,9 +236,14 @@ class ICMPFileServer:
         logging.info(
             "ICMP File Server started, listening for transfers...")
         os.makedirs(self.output_dir, exist_ok=True)
-        sniff(filter="icmp", prn=self._handle_packet,
-              stop_filter=lambda _: self.stop_event.is_set(),
-              timeout=self.timeout)
+        try:
+            sniff(filter="icmp", prn=self._handle_packet,
+                  stop_filter=lambda _: self.stop_event.is_set(),
+                  timeout=self.timeout, store=False)
+        finally:
+            if self.output_file:
+                self.output_file.close()
+                self.output_file = None
         logging.info("ICMP File Server stopped")
 
     def stop(self):
@@ -226,54 +264,76 @@ class ICMPFileServer:
         seq = parsed['seq']
 
         if pkt_type == TYPE_METADATA:
-            total, name = decode_metadata(parsed['data'])
-            if total is not None:
-                self.total_chunks = total
-                self.filename = name
-                self.received_chunks = {}
-                logging.info(
-                    "Receiving file: %s (%d chunks)", name, total)
-                self._send_ack(src_ip, seq)
-            else:
-                logging.warning(
-                    "Received invalid metadata from %s; not sending ACK", src_ip)
+            self._handle_metadata(src_ip, seq, parsed['data'])
+
         elif pkt_type == TYPE_DATA:
             self.received_chunks[seq] = parsed['data']
+            self._flush_chunks()
             logging.info(
-                "Received chunk %d/%d", seq, self.total_chunks)
+                "Received chunk %d/%d (written up to %d)",
+                seq, self.total_chunks, self.write_cursor - 1)
             self._send_ack(src_ip, seq)
 
         elif pkt_type == TYPE_FIN:
             self._send_ack(src_ip, seq)
-            self._reassemble_file()
+            self._flush_chunks()
+            if self.output_file:
+                self.output_file.close()
+                self.output_file = None
+            if self.write_cursor > self.total_chunks:
+                logging.info("File saved successfully: %s",
+                             os.path.join(self.output_dir,
+                                          self.filename))
+            else:
+                logging.warning(
+                    "File incomplete: wrote %d/%d chunks",
+                    self.write_cursor - 1, self.total_chunks)
             self.stop_event.set()
 
-    def _send_ack(self, dest_ip, seq):
-        """Send an ACK packet back to the client."""
-        pkt = build_icmp_packet(dest_ip, TYPE_ACK, seq)
-        send(pkt, verbose=False)
-
-    def _reassemble_file(self):
-        """Reassemble received chunks into a file."""
-        if not self.filename:
-            logging.error("No filename received, cannot reassemble")
+    def _handle_metadata(self, src_ip, seq, data):
+        """Process a metadata packet and prepare the output file."""
+        total, name = decode_metadata(data)
+        if total is None:
+            logging.warning(
+                "Received invalid metadata from %s; not sending ACK",
+                src_ip)
             return
 
-        output_path = os.path.join(self.output_dir, self.filename)
-        missing = []
-        with open(output_path, 'wb') as f:
-            for i in range(1, self.total_chunks + 1):
-                if i in self.received_chunks:
-                    f.write(self.received_chunks[i])
-                else:
-                    missing.append(i)
-
-        if missing:
+        safe_name = sanitize_filename(name)
+        if not safe_name:
             logging.warning(
-                "File saved with %d missing chunks: %s",
-                len(missing), missing)
-        else:
-            logging.info("File saved successfully: %s", output_path)
+                "Rejected unsafe filename '%s' from %s",
+                name, src_ip)
+            return
+
+        self.total_chunks = total
+        self.filename = safe_name
+        self.received_chunks = {}
+        self.write_cursor = 1
+
+        if self.output_file:
+            self.output_file.close()
+        output_path = os.path.join(self.output_dir, safe_name)
+        self.output_file = open(output_path, 'wb')  # pylint: disable=consider-using-with
+        logging.info(
+            "Receiving file: %s (%d chunks)", safe_name, total)
+        self._send_ack(src_ip, seq)
+
+    def _flush_chunks(self):
+        """Write sequential in-order chunks to the output file."""
+        if not self.output_file:
+            return
+        while self.write_cursor in self.received_chunks:
+            self.output_file.write(
+                self.received_chunks.pop(self.write_cursor))
+            self.write_cursor += 1
+        self.output_file.flush()
+
+    def _send_ack(self, dest_ip, seq):
+        """Send an ACK echo-reply packet back to the client."""
+        pkt = build_icmp_packet(
+            dest_ip, TYPE_ACK, seq, icmp_type=ICMP_ECHO_REPLY)
+        send(pkt, verbose=False)
 
 
 if __name__ == '__main__':
