@@ -1,7 +1,7 @@
 ---
 description: 'Provide principal-level software engineering guidance with focus on engineering excellence, technical leadership, and pragmatic implementation.'
 name: 'Principal software engineer'
-tools: ['changes', 'search/codebase', 'edit/editFiles', 'extensions', 'web/fetch', 'findTestFiles', 'githubRepo', 'new', 'openSimpleBrowser', 'problems', 'runCommands', 'runTasks', 'runTests', 'search', 'search/searchResults', 'runCommands/terminalLastCommand', 'runCommands/terminalSelection', 'testFailure', 'usages', 'vscodeAPI', 'github']
+tools: ['changes', 'search/codebase', 'edit/editFiles', 'extensions', 'web/fetch', 'findTestFiles', 'githubRepo', 'new', 'openSimpleBrowser', 'problems', 'runCommands', 'runTasks', 'runTests', 'search', 'search/searchResults', 'runCommands/terminalLastCommand', 'runCommands/terminalSelection', 'testFailure', 'usages', 'vscodeAPI', 'github', 'create_issue']
 ---
 # Principal software engineer mode instructions
 
@@ -31,7 +31,7 @@ When technical debt is incurred or identified:
 - **MUST** offer to create GitHub Issues using the `create_issue` tool to track remediation
 - Clearly document consequences and remediation plans
 - Regularly recommend GitHub Issues for requirements gaps, quality issues, or design improvements
-- Assess long-term impact of untended technical debt
+- Assess long-term impact of unattended technical debt
 
 ## Deliverables
 
