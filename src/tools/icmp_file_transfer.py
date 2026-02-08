@@ -233,8 +233,10 @@ class ICMPFileServer:
                 self.received_chunks = {}
                 logging.info(
                     "Receiving file: %s (%d chunks)", name, total)
-            self._send_ack(src_ip, seq)
-
+                self._send_ack(src_ip, seq)
+            else:
+                logging.warning(
+                    "Received invalid metadata from %s; not sending ACK", src_ip)
         elif pkt_type == TYPE_DATA:
             self.received_chunks[seq] = parsed['data']
             logging.info(
