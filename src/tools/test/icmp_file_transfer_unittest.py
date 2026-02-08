@@ -11,6 +11,7 @@ from src.tools.icmp_file_transfer import (
     TYPE_METADATA, TYPE_DATA, TYPE_ACK, TYPE_FIN,
     build_payload, parse_payload, encode_metadata, decode_metadata,
     is_valid_packet, build_icmp_packet, sanitize_filename,
+    suppress_kernel_icmp_echo,
     ICMPFileClient, ICMPFileServer
 )
 
@@ -516,6 +517,50 @@ class TestICMPFileServer(unittest.TestCase):
             self.assertEqual(sent_pkt[ICMP].type, ICMP_ECHO_REPLY)
             if server.output_file:
                 server.output_file.close()
+
+    @patch('src.tools.icmp_file_transfer.sniff')
+    @patch('src.tools.icmp_file_transfer.suppress_kernel_icmp_echo')
+    def test_server_suppresses_kernel_icmp(self, mock_suppress, mock_sniff):
+        """Verify server suppresses kernel echo replies on start."""
+        mock_suppress.return_value = '0'
+        with tempfile.TemporaryDirectory() as tmpdir:
+            server = ICMPFileServer(output_dir=tmpdir, timeout=0)
+            server.start()
+        # Called twice: suppress on start, restore on stop
+        self.assertEqual(mock_suppress.call_count, 2)
+        mock_suppress.assert_any_call(True)
+        # prev was '0' (not suppressed), so restore with False
+        mock_suppress.assert_any_call(False)
+
+
+class TestSuppressKernelIcmpEcho(unittest.TestCase):
+
+    @patch('subprocess.run')
+    @patch('builtins.open',
+           unittest.mock.mock_open(read_data='0\n'))
+    def test_suppress_sets_sysctl(self, mock_run):
+        result = suppress_kernel_icmp_echo(True)
+        self.assertEqual(result, '0')
+        mock_run.assert_called_once()
+        args = mock_run.call_args
+        self.assertIn('net.ipv4.icmp_echo_ignore_all=1',
+                       args[0][0])
+
+    @patch('subprocess.run')
+    @patch('builtins.open',
+           unittest.mock.mock_open(read_data='1\n'))
+    def test_restore_clears_sysctl(self, mock_run):
+        result = suppress_kernel_icmp_echo(False)
+        self.assertEqual(result, '1')
+        mock_run.assert_called_once()
+        args = mock_run.call_args
+        self.assertIn('net.ipv4.icmp_echo_ignore_all=0',
+                       args[0][0])
+
+    @patch('builtins.open', side_effect=OSError("permission denied"))
+    def test_returns_none_on_failure(self, mock_open):
+        result = suppress_kernel_icmp_echo(True)
+        self.assertIsNone(result)
 
 
 if __name__ == '__main__':

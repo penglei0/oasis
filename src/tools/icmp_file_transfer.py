@@ -17,6 +17,7 @@ import logging
 import threading
 import time
 import argparse
+import subprocess
 from scapy.all import IP, ICMP, Raw, send, sniff
 
 
@@ -36,6 +37,35 @@ TYPE_FIN = 0x04
 # ICMP types
 ICMP_ECHO_REQUEST = 8
 ICMP_ECHO_REPLY = 0
+
+# sysctl path for suppressing kernel ICMP echo replies
+ICMP_ECHO_IGNORE_PATH = '/proc/sys/net/ipv4/icmp_echo_ignore_all'
+
+
+def suppress_kernel_icmp_echo(suppress=True):
+    """Suppress or restore the kernel's automatic ICMP echo replies.
+
+    On Linux, sets /proc/sys/net/ipv4/icmp_echo_ignore_all.
+    Returns the previous value so it can be restored, or None on failure.
+    """
+    try:
+        with open(ICMP_ECHO_IGNORE_PATH, 'r', encoding='ascii') as f:
+            prev = f.read().strip()
+        value = '1' if suppress else '0'
+        subprocess.run(
+            ['sysctl', '-w',
+             f'net.ipv4.icmp_echo_ignore_all={value}'],
+            check=True, capture_output=True)
+        logging.info(
+            "Kernel ICMP echo reply %s (was %s)",
+            'suppressed' if suppress else 'restored', prev)
+        return prev
+    except (OSError, subprocess.CalledProcessError) as exc:
+        logging.warning(
+            "Could not %s kernel ICMP echo replies: %s. "
+            "Run as root or set sysctl manually.",
+            'suppress' if suppress else 'restore', exc)
+        return None
 
 
 def build_payload(pkt_type, seq_num, data=b''):
@@ -232,10 +262,15 @@ class ICMPFileServer:
         self.stop_event = threading.Event()
 
     def start(self):
-        """Start listening for incoming ICMP file transfers."""
+        """Start listening for incoming ICMP file transfers.
+
+        Suppresses kernel ICMP echo replies so the OS does not
+        auto-respond to incoming echo requests alongside this tool.
+        """
         logging.info(
             "ICMP File Server started, listening for transfers...")
         os.makedirs(self.output_dir, exist_ok=True)
+        prev_icmp = suppress_kernel_icmp_echo(True)
         try:
             sniff(filter="icmp", prn=self._handle_packet,
                   stop_filter=lambda _: self.stop_event.is_set(),
@@ -244,6 +279,8 @@ class ICMPFileServer:
             if self.output_file:
                 self.output_file.close()
                 self.output_file = None
+            if prev_icmp is not None:
+                suppress_kernel_icmp_echo(prev_icmp == '1')
         logging.info("ICMP File Server stopped")
 
     def stop(self):
