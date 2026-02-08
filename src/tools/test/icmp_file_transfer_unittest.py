@@ -187,22 +187,15 @@ class TestICMPFileClient(unittest.TestCase):
 
             client.send_file(temp_path)
             # payload_size=20, header=9, data_per_chunk=11
-            # 100 / 11 = 10 chunks (ceil)
+            # ceil(100 / 11) = 10 chunks
             # sends = 1 metadata + 10 data + 1 FIN = 12
             self.assertEqual(mock_send.call_count, 12)
         finally:
             os.unlink(temp_path)
 
     def test_payload_size_too_small(self):
-        client = ICMPFileClient(dest_ip='10.0.0.1', payload_size=5)
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.txt') as f:
-            f.write(b'test')
-            temp_path = f.name
-        try:
-            with self.assertRaises(ValueError):
-                client.send_file(temp_path)
-        finally:
-            os.unlink(temp_path)
+        with self.assertRaises(ValueError):
+            ICMPFileClient(dest_ip='10.0.0.1', payload_size=5)
 
     @patch('src.tools.icmp_file_transfer.sniff')
     @patch('src.tools.icmp_file_transfer.send')

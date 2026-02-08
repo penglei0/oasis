@@ -91,6 +91,9 @@ class ICMPFileClient:
 
     def __init__(self, dest_ip, *, payload_size=512, interval=0.05,
                  timeout=2.0, max_retries=5):
+        if payload_size <= HEADER_SIZE:
+            raise ValueError(
+                f"payload_size must be greater than {HEADER_SIZE}")
         self.dest_ip = dest_ip
         self.payload_size = payload_size
         self.interval = interval
@@ -107,9 +110,6 @@ class ICMPFileClient:
             file_data = f.read()
 
         data_per_chunk = self.payload_size - HEADER_SIZE
-        if data_per_chunk <= 0:
-            raise ValueError(
-                f"payload_size must be greater than {HEADER_SIZE}")
 
         chunks = [file_data[i:i + data_per_chunk]
                   for i in range(0, len(file_data), data_per_chunk)]
@@ -163,7 +163,8 @@ class ICMPFileClient:
                         self.ack_event.set()
 
         sniff(filter="icmp", prn=handle_packet,
-              stop_filter=lambda _: self.stop_sniff.is_set())
+              stop_filter=lambda _: self.stop_sniff.is_set(),
+              timeout=self.timeout * self.max_retries * 2)
 
 
 class ICMPFileServer:
