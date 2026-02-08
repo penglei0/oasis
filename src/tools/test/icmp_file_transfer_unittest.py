@@ -193,6 +193,39 @@ class TestICMPFileClient(unittest.TestCase):
         finally:
             os.unlink(temp_path)
 
+    @patch('src.tools.icmp_file_transfer.sniff')
+    @patch('src.tools.icmp_file_transfer.send')
+    def test_send_file_with_small_buffer(self, mock_send, mock_sniff):
+        """Verify streaming works with a buffer smaller than total chunks."""
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.bin') as f:
+            f.write(b'B' * 100)
+            temp_path = f.name
+
+        try:
+            client = ICMPFileClient(
+                dest_ip='10.0.0.2', payload_size=20,
+                timeout=0.1, max_retries=1, interval=0,
+                buffer_size=3)
+
+            sent_data = []
+
+            def auto_ack(pkt, **kwargs):
+                if pkt.haslayer(Raw):
+                    parsed = parse_payload(bytes(pkt[Raw].load))
+                    if parsed and parsed['type'] == TYPE_DATA:
+                        sent_data.append(parsed['data'])
+                client.ack_event.set()
+            mock_send.side_effect = auto_ack
+
+            client.send_file(temp_path)
+            # Same 10 chunks, but loaded 3 at a time
+            # sends = 1 metadata + 10 data + 1 FIN = 12
+            self.assertEqual(mock_send.call_count, 12)
+            # Verify all data was sent correctly
+            self.assertEqual(b''.join(sent_data), b'B' * 100)
+        finally:
+            os.unlink(temp_path)
+
     def test_payload_size_too_small(self):
         with self.assertRaises(ValueError):
             ICMPFileClient(dest_ip='10.0.0.1', payload_size=5)

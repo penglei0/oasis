@@ -90,7 +90,7 @@ class ICMPFileClient:
     """Client for sending files via ICMP packets with Stop-and-Wait ARQ."""
 
     def __init__(self, dest_ip, *, payload_size=512, interval=0.05,
-                 timeout=2.0, max_retries=5):
+                 timeout=2.0, max_retries=5, buffer_size=10):
         if payload_size <= HEADER_SIZE:
             raise ValueError(
                 f"payload_size must be greater than {HEADER_SIZE}")
@@ -99,21 +99,22 @@ class ICMPFileClient:
         self.interval = interval
         self.timeout = timeout
         self.max_retries = max_retries
+        self.buffer_size = buffer_size
         self.ack_event = threading.Event()
         self.expected_ack_seq = -1
         self.stop_sniff = threading.Event()
 
     def send_file(self, filepath):
-        """Send a file to the server via ICMP packets."""
+        """Send a file to the server via ICMP packets.
+
+        Reads chunks on demand using a sliding buffer instead of
+        loading the entire file into memory at once.
+        """
         filename = os.path.basename(filepath)
-        with open(filepath, 'rb') as f:
-            file_data = f.read()
-
+        file_size = os.path.getsize(filepath)
         data_per_chunk = self.payload_size - HEADER_SIZE
-
-        chunks = [file_data[i:i + data_per_chunk]
-                  for i in range(0, len(file_data), data_per_chunk)]
-        total_chunks = len(chunks)
+        total_chunks = ((file_size + data_per_chunk - 1)
+                        // data_per_chunk) if file_size > 0 else 0
 
         listener = threading.Thread(
             target=self._listen_for_acks, daemon=True)
@@ -123,9 +124,28 @@ class ICMPFileClient:
             meta = encode_metadata(total_chunks, filename)
             self._send_with_retry(TYPE_METADATA, 0, meta)
 
-            for i, chunk in enumerate(chunks):
-                time.sleep(self.interval)
-                self._send_with_retry(TYPE_DATA, i + 1, chunk)
+            with open(filepath, 'rb') as f:
+                chunk_buffer = {}
+                next_load = 0
+                # Pre-load initial buffer
+                for _ in range(min(self.buffer_size, total_chunks)):
+                    data = f.read(data_per_chunk)
+                    if not data:
+                        break
+                    chunk_buffer[next_load] = data
+                    next_load += 1
+
+                for i in range(total_chunks):
+                    time.sleep(self.interval)
+                    self._send_with_retry(
+                        TYPE_DATA, i + 1, chunk_buffer[i])
+                    del chunk_buffer[i]
+                    # Load next chunk when buffer slot frees up
+                    if next_load < total_chunks:
+                        data = f.read(data_per_chunk)
+                        if data:
+                            chunk_buffer[next_load] = data
+                            next_load += 1
 
             time.sleep(self.interval)
             self._send_with_retry(TYPE_FIN, total_chunks + 1)
@@ -280,6 +300,9 @@ if __name__ == '__main__':
     client_parser.add_argument(
         '--max-retries', type=int, default=5,
         help='Max retransmission attempts per packet (default: 5)')
+    client_parser.add_argument(
+        '--buffer-size', type=int, default=10,
+        help='Number of chunks to pre-load into memory (default: 10)')
 
     server_parser = subparsers.add_parser('server', help='Receive files')
     server_parser.add_argument(
@@ -297,7 +320,8 @@ if __name__ == '__main__':
             payload_size=args.payload_size,
             interval=args.interval,
             timeout=args.timeout,
-            max_retries=args.max_retries)
+            max_retries=args.max_retries,
+            buffer_size=args.buffer_size)
         client.send_file(args.file)
 
     elif args.mode == 'server':
