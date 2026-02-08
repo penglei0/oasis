@@ -43,24 +43,24 @@ class WebSocketClient:
 
 class WebSocketServer:
     """Simple synchronous websocket server using websockets.sync.server."""
-    def __init__(self, host: str, port: int):
-        self.host = host
+    def __init__(self, bind_host: str, port: int):
+        self.host = bind_host
         self.port = port
 
     def _echo_handler(self, websocket):
         """Echo back received messages."""
         try:
             for message in websocket:
-                logging.info(f"Received: {message}")
+                logging.info("Received: %s", message)
                 websocket.send(message)
         except Exception as e:
-            logging.error(f"Connection error: {e}")
+            logging.error("Connection error: %s", e)
 
     def start(self):
         """Start the server and block until interrupted."""
-        logging.info(f"Starting server on ws://{self.host}:{self.port}")
-        with serve(self._echo_handler, self.host, self.port) as server:
-            server.serve_forever()
+        logging.info("Starting server on ws://%s:%s", self.host, self.port)
+        with serve(self._echo_handler, self.host, self.port) as srv:
+            srv.serve_forever()
 
 def signal_handler(sig, frame):
     logging.info("Interrupt received, stopping...")
@@ -85,10 +85,10 @@ if __name__ == '__main__':
             if netifaces.AF_INET in addrs:
                 host = addrs[netifaces.AF_INET][0]['addr']
             else:
-                logging.error(f"No IPv4 address found for interface {args.interface}, using localhost")
-        logging.info(f"Starting WebSocket server on interface {args.interface} with host {host}")
-        server = WebSocketServer(host=host, port=8765)
-        server.start()
+                logging.error("No IPv4 address found for interface %s, using localhost", args.interface)
+        logging.info("Starting WebSocket server on interface %s with host %s", args.interface, host)
+        ws_server = WebSocketServer(bind_host=host, port=8765)
+        ws_server.start()
     elif args.client:
         client = WebSocketClient(url=args.client)
         client.connect()
@@ -100,10 +100,10 @@ if __name__ == '__main__':
                 test_msg = f"{const_test_msg} {seq}"
                 client.send(test_msg)
                 response = client.recv()
-                logging.info(f"Received from server: {response}")
+                logging.info("Received from server: %s", response)
                 time.sleep(1)
                 seq += 1
         finally:
             client.close()
-            logging.info("Connection closed")    
+            logging.info("Connection closed")
     logging.info("websocket APP stopped")
