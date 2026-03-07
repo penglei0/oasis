@@ -144,8 +144,14 @@ if [ "$has_skipped_copy" != "True" ] && [ "$is_imported_as_module" = "True" ]; t
     files_to_copy="./build/bin/bats_iperf"
     for file in $files_to_copy; do
         if [ -f "$file" ]; then
-            print_message "Found $file and update it to oasis rootfs" pass
-            cp "$file" test/rootfs/usr/bin/
+            print_message "Found $file and update it to rootfs" pass
+            for rootfs_prefix in test/rootfs "$default_oasis_src_path"/test/rootfs; do
+                target_dir="$rootfs_prefix"/usr/bin
+                mkdir -p "$target_dir"/
+                cp "$file" "$target_dir"/
+                chmod +x "$target_dir"/"$(basename "$file")"
+            done
+            print_message "Synced $file to user and oasis rootfs under /usr/bin " pass
         else
             print_message "File $file not found, skipping update..."
         fi
