@@ -1,6 +1,46 @@
 node_config:
   - name: default
-    img: ubuntu-generic:latest
+    img: ubuntu-generic:22.04
+    vols:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/usr/bin/perf:/usr/bin/perf:ro"
+      - "/lib/modules/:/lib/modules/:ro"
+      - "/usr/lib/linux-tools/:/usr/lib/linux-tools/:ro"
+    bind_port: True
+    name_prefix: h
+    ip_range: "10.0.0.0/8"
+  - name: ubuntu-22.04
+    img: ubuntu-generic:22.04
+    vols:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/usr/bin/perf:/usr/bin/perf:ro"
+      - "/lib/modules/:/lib/modules/:ro"
+      - "/usr/lib/linux-tools/:/usr/lib/linux-tools/:ro"
+    bind_port: True
+    name_prefix: h
+    ip_range: "10.0.0.0/8"
+  - name: ubuntu-24.04
+    img: ubuntu-generic:24.04
+    vols:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/usr/bin/perf:/usr/bin/perf:ro"
+      - "/lib/modules/:/lib/modules/:ro"
+      - "/usr/lib/linux-tools/:/usr/lib/linux-tools/:ro"
+    bind_port: True
+    name_prefix: h
+    ip_range: "10.0.0.0/8"
+  - name: ubuntu-22.04-lttng
+    img: ubuntu-generic-lttng:22.04
+    vols:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/usr/bin/perf:/usr/bin/perf:ro"
+      - "/lib/modules/:/lib/modules/:ro"
+      - "/usr/lib/linux-tools/:/usr/lib/linux-tools/:ro"
+    bind_port: True
+    name_prefix: h
+    ip_range: "10.0.0.0/8"
+  - name: ubuntu-24.04-lttng
+    img: ubuntu-generic-lttng:24.04
     vols:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "/usr/bin/perf:/usr/bin/perf:ro"

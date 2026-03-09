@@ -34,7 +34,12 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
 
 ## Using Oasis
 
-1. **Prepare dependencies** — follow the prerequisites (WSL kernel TC support, Docker, Python) listed in [docs/get-started.md](docs/get-started.md#1-prerequisites).
+1. **Prepare dependencies** — initialize Git LFS and the bundled Containernet submodule, then follow the prerequisites (WSL kernel TC support, Docker, Python) listed in [docs/get-started.md](docs/get-started.md#1-prerequisites).
+
+   ```bash
+   git lfs fetch --all
+   git submodule update --init --recursive
+   ```
 2. **Launch a test**:
 
    ```bash
@@ -42,6 +47,10 @@ See getting started guide in [docs/get-started.md](docs/get-started.md) for more
    ```
 
 3. **Inspect results** — Oasis writes analyzer artifacts per test suite; see [docs/get-started.md](docs/get-started.md#3-test-results) for paths and sample outputs.
+
+## Container images
+
+Oasis now builds the nested Containernet image from the bundled `containernet/` git submodule instead of relying on `containernet/containernet:latest`. The supported image variants are documented in [docs/get-started.md](docs/get-started.md#for-linux-platform-build-docker-image), including their usage, tags, and build commands for Ubuntu 22.04 and Ubuntu 24.04.
 
 ## Import Oasis to your project
 

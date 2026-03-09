@@ -1,14 +1,48 @@
-FROM containernet/containernet:latest
+ARG UBUNTU_VERSION=22.04
+FROM ubuntu:${UBUNTU_VERSION}
+LABEL maintainer="penglei0"
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ="Etc/UTC"
+ENV TZ=${TZ} \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:${PATH}"
 
-RUN apt-get update
-RUN python3 --version
-RUN python3 -m pip install --upgrade pip
-# Install tools needed for development
+RUN apt-get update \
+    && apt-get install --yes \
+        ansible \
+        aptitude \
+        build-essential \
+        curl \
+        git \
+        iptables \
+        iputils-ping \
+        net-tools \
+        python3-dev \
+        python3-pip \
+        python3-setuptools \
+        python3-venv \
+        software-properties-common \
+        sudo
 
-RUN python3 -m pip install PyYAML==6.0.1 psutil>=7.0.0 dataclasses>=0.6 matplotlib>=3.9.2
-# -i https://pypi.tuna.tsinghua.edu.cn/simple
+COPY containernet /containernet
+WORKDIR /containernet/ansible
+
+# Regular docker-ce installation
+RUN ansible-playbook -i "localhost," -c local --skip-tags "notindocker" install.yml
+
+# Install docker-ce with mirrors
+# COPY  patches/install_with_mirror_tsinghua.yml /containernet/ansible/
+# RUN ansible-playbook -i "localhost," -c local --skip-tags "notindocker" install_with_mirror_tsinghua.yml
+
+WORKDIR /containernet
+COPY docker/requirements/containernet.txt /tmp/image-requirements.txt
+RUN python3 -m venv "${VIRTUAL_ENV}" \
+    && "${VIRTUAL_ENV}/bin/python3" -m pip install --upgrade pip \
+    && make install \
+    && "${VIRTUAL_ENV}/bin/python3" -m pip install --no-cache-dir -r /tmp/image-requirements.txt \
+    && rm -f /tmp/image-requirements.txt
+
+ENV CONTAINERNET_NESTED=1
 
 # Cleanup
 RUN rm -rf /var/lib/apt/lists/*
@@ -16,5 +50,4 @@ RUN rm -rf /var/lib/apt/lists/*
 # override the entry point of containernet w/ absolute path to avoid
 # path not found err when changing workdir
 ENTRYPOINT [ "/containernet/util/docker/entrypoint.sh" ]
-
-WORKDIR /root
+CMD ["/bin/bash"]

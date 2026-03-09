@@ -24,8 +24,29 @@ concurrency:
 jobs:
   oasis-run:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        containernet:
+          - name: ubuntu-22.04
+            tag: containernet:22.04
+            ubuntu_version: "22.04"
+          - name: ubuntu-24.04
+            tag: containernet:24.04
+            ubuntu_version: "24.04"
+        host:
+          - name: ubuntu-22.04
+            tag: ubuntu-generic:22.04
+            ubuntu_version: "22.04"
+          - name: ubuntu-24.04
+            tag: ubuntu-generic:24.04
+            ubuntu_version: "24.04"
+    name: Oasis CI (${{ matrix.containernet.ubuntu_version }} nested / ${{ matrix.host.ubuntu_version }} host)
     steps:
       - uses: actions/checkout@v5
+        with:
+          lfs: true
+          submodules: recursive
       - name: sync git-lfs
         run: git lfs install && git lfs pull
       - name: Set up python
@@ -36,49 +57,57 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install -r ${{github.workspace}}/src/containernet/requirements.txt
+      - name: Capture containernet submodule sha
+        run: echo "CONTAINERNET_SUBMODULE_SHA=$(git -C containernet rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Restore Docker Images
         id: cached-docker-images
         uses: actions/cache@v4
         with:
           path: ${{github.workspace}}/images/
-          key: docker_cache-${{ hashFiles('**/Dockerfile.**') }}
+          key: docker_cache-${{ runner.os }}-${{ matrix.containernet.ubuntu_version }}-${{ matrix.host.ubuntu_version }}-${{ env.CONTAINERNET_SUBMODULE_SHA }}-${{ hashFiles('Dockerfile.containernet', 'Dockerfile.ubuntu-generic', 'Dockerfile.ubuntu-generic-lttng', 'docker/requirements/*.txt') }}
       - name: Build Docker Images
         if: steps.cached-docker-images.outputs.cache-hit != 'true'
         working-directory: ${{github.workspace}}/
         run: |
           mkdir -p ${{github.workspace}}/images/
-          docker build -t containernet:latest -f Dockerfile.containernet .
-          docker build -t ubuntu-generic:latest -f Dockerfile.ubuntu-generic .
-          docker image save containernet:latest --output ${{github.workspace}}/images/containernet.tar
-          docker image save ubuntu-generic:latest --output ${{github.workspace}}/images/ubuntu-generic.tar
+          docker build -t ${{ matrix.containernet.tag }} --build-arg UBUNTU_VERSION=${{ matrix.containernet.ubuntu_version }} -f Dockerfile.containernet .
+          docker build -t ${{ matrix.host.tag }} --build-arg UBUNTU_VERSION=${{ matrix.host.ubuntu_version }} -f Dockerfile.ubuntu-generic .
+          docker image save ${{ matrix.containernet.tag }} --output ${{github.workspace}}/images/containernet-${{ matrix.containernet.ubuntu_version }}.tar
+          docker image save ${{ matrix.host.tag }} --output ${{github.workspace}}/images/ubuntu-generic-${{ matrix.host.ubuntu_version }}.tar
           docker images
       - name: Load Docker Images
         working-directory: ${{github.workspace}}/
         if: steps.cached-docker-images.outputs.cache-hit == 'true'
         run: |
-          docker image load --input ./images/containernet.tar
-          docker image load --input ./images/ubuntu-generic.tar
+          docker image load --input ./images/containernet-${{ matrix.containernet.ubuntu_version }}.tar
+          docker image load --input ./images/ubuntu-generic-${{ matrix.host.ubuntu_version }}.tar
       - name: Loading secrets
         run: |
           echo "Hardware_info=${{secrets.BATS_HARDWARE_INFO}}" >> ${{github.workspace}}/test/rootfs/etc/cfg/licence
           echo "Licence_id=${{secrets.BATS_LICENCE_ID}}" >> ${{github.workspace}}/test/rootfs/etc/cfg/licence
       - name: SSHPing tests
         working-directory: ${{github.workspace}}/
+        env:
+          OASIS_NODE_CONFIG_NAME: ${{ matrix.host.name }}
         run: |
-          ./src/tools/run_test.sh protocol-sshping-test.yaml --cleanup --no-privilege
+          ./src/tools/run_test.sh protocol-sshping-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }}
       - name: SCP test
         working-directory: ${{github.workspace}}/
+        env:
+          OASIS_NODE_CONFIG_NAME: ${{ matrix.host.name }}
         run: |
-          ./src/tools/run_test.sh protocol-scp-test.yaml --cleanup --no-privilege
+          ./src/tools/run_test.sh protocol-scp-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }}
       - name: Throughput tests
         working-directory: ${{github.workspace}}/
+        env:
+          OASIS_NODE_CONFIG_NAME: ${{ matrix.host.name }}
         run: |
-          ./src/tools/run_test.sh protocol-ci-test.yaml --cleanup --no-privilege
+          ./src/tools/run_test.sh protocol-ci-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }}
       - name: Upload test logs
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: ci-test-logs
+          name: ci-test-logs-${{ matrix.containernet.ubuntu_version }}-${{ matrix.host.ubuntu_version }}
           path: |
             ${{github.workspace}}/test_results/**
           retention-days: 1

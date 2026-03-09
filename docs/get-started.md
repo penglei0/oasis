@@ -27,10 +27,12 @@ First step is to get the source code of Oasis from GitHub:
 
 ```bash
 git clone https://github.com/penglei0/oasis.git
+cd oasis
 git lfs fetch --all
+git submodule update --init --recursive
 ```
 
-> Note: Highly recommend to use Oasis with Ubuntu 22.04.
+> Note: Oasis supports Ubuntu 22.04 and Ubuntu 24.04 for both the nested Containernet image and the host-node images.
 
 ### prepare python environment
 
@@ -51,13 +53,16 @@ The required docker images are defined in `test/predefined.node_config.yaml` and
 
 `test/nested-containernet-config.yaml` lists the available Containernet images and its configuration; `test/predefined.node_config.yaml` lists the available docker images for the host nodes in Containernet and its configuration.
 
-```bash
-# To build the official Containernet image
-sudo docker build -t  containernet:latest -f Dockerfile.containernet .
+| Image tag | Usage | Description | Build command |
+| --- | --- | --- | --- |
+| `containernet:22.04` | Nested Containernet (`--containernet=default` / `--containernet=ubuntu-22.04`) | Builds Containernet from the local `containernet/` git submodule on Ubuntu 22.04. | `sudo docker build -t containernet:22.04 --build-arg UBUNTU_VERSION=22.04 -f Dockerfile.containernet .` |
+| `containernet:24.04` | Nested Containernet (`--containernet=ubuntu-24.04`) | Builds Containernet from the local `containernet/` git submodule on Ubuntu 24.04. | `sudo docker build -t containernet:24.04 --build-arg UBUNTU_VERSION=24.04 -f Dockerfile.containernet .` |
+| `ubuntu-generic:22.04` | Host nodes (`node_config: default` / `ubuntu-22.04`) | General-purpose Oasis host image for Ubuntu 22.04. | `sudo docker build -t ubuntu-generic:22.04 --build-arg UBUNTU_VERSION=22.04 -f Dockerfile.ubuntu-generic .` |
+| `ubuntu-generic:24.04` | Host nodes (`node_config: ubuntu-24.04`) | General-purpose Oasis host image for Ubuntu 24.04. | `sudo docker build -t ubuntu-generic:24.04 --build-arg UBUNTU_VERSION=24.04 -f Dockerfile.ubuntu-generic .` |
+| `ubuntu-generic-lttng:22.04` | Host nodes with LTTng (`node_config: ubuntu-22.04-lttng`) | Extends the Ubuntu 22.04 host image with LTTng tooling. | `sudo docker build -t ubuntu-generic-lttng:22.04 --build-arg UBUNTU_VERSION=22.04 -f Dockerfile.ubuntu-generic-lttng .` |
+| `ubuntu-generic-lttng:24.04` | Host nodes with LTTng (`node_config: ubuntu-24.04-lttng`) | Extends the Ubuntu 24.04 host image with LTTng tooling. | `sudo docker build -t ubuntu-generic-lttng:24.04 --build-arg UBUNTU_VERSION=24.04 -f Dockerfile.ubuntu-generic-lttng .` |
 
-# To build the ubuntu 22.04 image for host nodes in Containernet
-sudo docker build -t ubuntu-generic:latest -f Dockerfile.ubuntu-generic .
-```
+The nested Containernet image is built from the bundled upstream source tree in `containernet/`. If you clone Oasis without submodules, run `git submodule update --init --recursive` before building.
 
 when using `src/start.py` to lunch a test, the option `--containernet=default` specifies the image to use and `node_config` section in the test case YAML (e.g., `test/protocol-ci-test.yaml`)    specifies the docker images for host nodes in Containernet.
 
