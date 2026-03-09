@@ -1,6 +1,18 @@
 containernet:
   default:
-    image: containernet:latest
+    image: containernet:22.04
+    privileged: true
+    network_mode: "host"
+    mounts:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+  ubuntu-22.04:
+    image: containernet:22.04
+    privileged: true
+    network_mode: "host"
+    mounts:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+  ubuntu-24.04:
+    image: containernet:24.04
     privileged: true
     network_mode: "host"
     mounts:

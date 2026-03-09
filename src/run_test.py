@@ -7,7 +7,12 @@ import yaml
 from mininet.log import setLogLevel
 
 from interfaces.network_mgr import NetworkType
-from tools.util import (is_same_path, is_base_path, parse_test_file_name)
+from tools.util import (
+    is_same_path,
+    is_base_path,
+    parse_test_file_name,
+    resolve_node_config_reference,
+)
 from var.global_var import g_root_path
 from core.config import (IConfig, NodeConfig, load_all_tests)
 from core.network_factory import (create_network_mgr)
@@ -31,7 +36,11 @@ def containernet_node_config(config_base_path, file_path) -> NodeConfig:
     if not yaml_content or 'containernet' not in yaml_content:
         logging.error("No containernet node config found in the YAML file.")
         return NodeConfig(name="", img="")
-    node_config_yaml = yaml_content['containernet']["node_config"]
+    override_name = os.getenv("OASIS_NODE_CONFIG_NAME", "").strip()
+    node_config_yaml = resolve_node_config_reference(
+        yaml_content['containernet']["node_config"], override_name)
+    if override_name:
+        logging.info("Override node_config with OASIS_NODE_CONFIG_NAME=%s", override_name)
     loaded_conf = IConfig.load_yaml_config(config_base_path,
                                            node_config_yaml, 'node_config')
     if isinstance(loaded_conf, NodeConfig):

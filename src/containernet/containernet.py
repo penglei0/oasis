@@ -140,8 +140,8 @@ class NestedContainernet():
         if not os.path.exists(f"{self.oasis_workspace}/src/containernet/requirements.txt"):
             return
         install_cmd = f"docker exec {self.test_container_name} "\
-            f"/bin/bash -c \"python3 -m pip install -r {g_root_path}src/containernet/requirements.txt"\
-            f" -i https://pypi.tuna.tsinghua.edu.cn/simple\""
+            f"/bin/bash -c \"python3 -m pip install --no-cache-dir -r "\
+            f"{g_root_path}src/containernet/requirements.txt\""
         logging.info(
             f"Oasis install containernet dependencies \" %s \"", install_cmd)
         os.system(install_cmd)

@@ -3,6 +3,7 @@ from src.tools.util import is_same_path
 from src.tools.util import is_base_path
 from src.tools.util import str_to_mbps
 from src.tools.util import parse_test_file_name
+from src.tools.util import resolve_node_config_reference
 
 
 class TestIsSamePath(unittest.TestCase):
@@ -89,6 +90,26 @@ class TestStrToMbps(unittest.TestCase):
 
     def test_parse_test_file_name_only_colon(self):
         self.assertEqual(parse_test_file_name(':'), (None, None))
+
+    def test_resolve_node_config_reference_without_override(self):
+        node_config = {
+            'config_name': 'default',
+            'config_file': 'predefined.node_config.yaml'
+        }
+        self.assertEqual(resolve_node_config_reference(node_config, ''),
+                         node_config)
+
+    def test_resolve_node_config_reference_with_override(self):
+        node_config = {
+            'config_name': 'default',
+            'config_file': 'predefined.node_config.yaml'
+        }
+        self.assertEqual(
+            resolve_node_config_reference(node_config, 'ubuntu-24.04'),
+            {
+                'config_name': 'ubuntu-24.04',
+                'config_file': 'predefined.node_config.yaml'
+            })
 
 
 if __name__ == '__main__':

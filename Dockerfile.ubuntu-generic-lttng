@@ -1,4 +1,5 @@
-FROM ubuntu-generic:latest
+ARG UBUNTU_VERSION=22.04
+FROM ubuntu-generic:${UBUNTU_VERSION}
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN set -eux; \
@@ -9,6 +10,9 @@ RUN set -eux; \
         apt-get update; \
         apt-get install liblttng-ust-dev babeltrace lttng-tools --yes;
 
+COPY docker/requirements /tmp/requirements
+RUN python3 -m pip install --no-cache-dir -r /tmp/requirements/ubuntu-generic-lttng.txt \
+        && rm -rf /tmp/requirements
 
 ## Cleanup
 RUN set -eux; \

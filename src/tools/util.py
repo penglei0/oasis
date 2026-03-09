@@ -57,3 +57,12 @@ def parse_test_file_name(test_file_path_string):
     if len(temp_list) == 2:
         return temp_list[0], temp_list[1]
     return test_file_path_string, None
+
+
+def resolve_node_config_reference(node_config_yaml, override_name):
+    """Override the node config reference when requested."""
+    if not override_name or not isinstance(node_config_yaml, dict):
+        return node_config_yaml
+    resolved_config = dict(node_config_yaml)
+    resolved_config["config_name"] = override_name
+    return resolved_config
