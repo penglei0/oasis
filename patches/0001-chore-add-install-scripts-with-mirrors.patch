@@ -1,0 +1,74 @@
+From b6a2406f14bab06f756340d1d869a3a09e5174e0 Mon Sep 17 00:00:00 2001
+From: "lei.peng" <plhitsz@outlook.com>
+Date: Mon, 9 Mar 2026 18:25:05 +0800
+Subject: [PATCH] chore: add install scripts with mirrors
+
+---
+ ansible/install_with_mirror_tsinghua.yml | 55 ++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)
+ create mode 100755 ansible/install_with_mirror_tsinghua.yml
+
+diff --git a/ansible/install_with_mirror_tsinghua.yml b/ansible/install_with_mirror_tsinghua.yml
+new file mode 100755
+index 0000000..ce59c45
+--- /dev/null
++++ b/ansible/install_with_mirror_tsinghua.yml
+@@ -0,0 +1,55 @@
++- hosts: localhost
++  tasks:
++   - name: updates apt
++     apt:
++      update_cache: yes
++
++   - name: install basic packages
++     apt:
++      name: [
++        'aptitude', 'apt-transport-https', 'ca-certificates',
++        'curl', 'python3-setuptools', 'python3-dev', 'build-essential',
++        'python3-pip','iptables','software-properties-common',
++        'stress-ng', 'coreutils', 'iproute2', 'net-tools'
++        ]
++      state: present
++
++   - name: "Check if Docker-CE is installed"
++     package_facts:
++      manager: "auto"
++
++   - name: Check system architecture
++     shell: "dpkg --print-architecture"
++     register: arch
++     when: "'docker-ce' not in ansible_facts.packages and 'moby-engine' not in ansible_facts.packages"
++
++   - name: Check OS Codename
++     shell: "lsb_release -cs"
++     register: codename
++     when: "'docker-ce' not in ansible_facts.packages and 'moby-engine' not in ansible_facts.packages"
++
++   - name: install Docker CE
++     shell: "export DOWNLOAD_URL=\"https://mirrors.tuna.tsinghua.edu.cn/docker-ce\" && curl -fsSL https://raw.githubusercontent.com/docker/docker-install/master/install.sh | sh"
++     when: "'docker-ce' not in ansible_facts.packages and 'moby-engine' not in ansible_facts.packages"
++
++   - name: find pip executable
++     shell: "which pip3"
++     register: pip_path
++
++   - name: build and install Containernet dependencies (using Mininet installer)
++     shell: PYTHON=python3 containernet/util/install.sh -fnv
++     args:
++       chdir: ../../
++
++   - name: install Containernet binaries
++     shell: make -f Makefile install-mnexec install-manpages
++     args:
++       chdir: ../
++     tags:
++       - notindocker
++
++   - name: download 'ubuntu' docker image for Containernet example
++     shell: docker pull ubuntu:trusty
++     tags:
++        - notindocker
++        - nopull
+-- 
+2.34.1
+

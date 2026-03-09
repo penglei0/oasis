@@ -26,7 +26,13 @@ RUN apt-get update \
 
 COPY containernet /containernet
 WORKDIR /containernet/ansible
-RUN ansible-playbook -i "localhost," -c local --skip-tags "notindocker" install.yml
+
+# Regular docker-ce installation
+# RUN ansible-playbook -i "localhost," -c local --skip-tags "notindocker" install.yml
+
+# Install docker-ce with mirrors
+COPY  patches/install_with_mirror_tsinghua.yml /containernet/ansible/
+RUN ansible-playbook -i "localhost," -c local --skip-tags "notindocker" install_with_mirror_tsinghua.yml
 
 WORKDIR /containernet
 COPY docker/requirements/containernet.txt /tmp/image-requirements.txt
