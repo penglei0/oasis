@@ -24,10 +24,13 @@ RUN set -eux; \
             gdb
 
 ## install olsr tools, iptables, tcpdump
-RUN apt-get install --yes \
-        netcat-openbsd \
-        tcpdump \
-        iptables
+RUN set -eux; \
+        if ! apt-get install --yes netcat-openbsd; then \
+            apt-get install --yes netcat || { echo "Failed to install netcat-openbsd or netcat fallback packages."; exit 1; }; \
+        fi; \
+        apt-get install --yes \
+            tcpdump \
+            iptables
 
 COPY docker/requirements/ubuntu-generic.txt /tmp/image-requirements.txt
 RUN python3 -m venv "${VIRTUAL_ENV}" \

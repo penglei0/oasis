@@ -11,7 +11,7 @@ RUN set -eux; \
         apt-get install liblttng-ust-dev babeltrace lttng-tools --yes;
 
 COPY docker/requirements /tmp/requirements
-RUN python3 -m pip install --no-cache-dir -r /tmp/requirements/ubuntu-generic-lttng.txt \
+RUN "${VIRTUAL_ENV}/bin/python3" -m pip install --no-cache-dir -r /tmp/requirements/ubuntu-generic-lttng.txt \
         && rm -rf /tmp/requirements
 
 ## Cleanup

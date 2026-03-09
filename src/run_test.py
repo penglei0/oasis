@@ -37,9 +37,11 @@ def containernet_node_config(config_base_path, file_path) -> NodeConfig:
         logging.error("No containernet node config found in the YAML file.")
         return NodeConfig(name="", img="")
     override_name = os.getenv("OASIS_NODE_CONFIG_NAME", "").strip()
+    node_config_reference = yaml_content['containernet']["node_config"]
     node_config_yaml = resolve_node_config_reference(
-        yaml_content['containernet']["node_config"], override_name)
-    if override_name:
+        node_config_reference, override_name)
+    if (override_name and isinstance(node_config_reference, dict)
+            and node_config_reference.get("config_name") != node_config_yaml.get("config_name")):
         logging.info("Override node_config with OASIS_NODE_CONFIG_NAME=%s", override_name)
     loaded_conf = IConfig.load_yaml_config(config_base_path,
                                            node_config_yaml, 'node_config')
