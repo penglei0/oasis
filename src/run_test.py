@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import platform
+import copy
 import yaml
 
 from mininet.log import setLogLevel
@@ -37,10 +38,10 @@ def containernet_node_config(config_base_path, file_path, node_image_override: s
     if not yaml_content or 'containernet' not in yaml_content:
         logging.error("No containernet node config found in the YAML file.")
         return NodeConfig(name="", img="")
-    node_config_yaml = dict(yaml_content['containernet']["node_config"])
-    host_config = yaml_content.get("host_config", {})
+    node_config_yaml = copy.deepcopy(yaml_content['containernet']["node_config"])
+    yaml_host_config = yaml_content.get("host_config", {})
     merged_env = merge_env_values(
-        host_config.get("env", {}),
+        yaml_host_config.get("env", {}),
         node_config_yaml.get("env", {}),
     )
     if merged_env:
