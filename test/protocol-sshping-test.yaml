@@ -5,6 +5,10 @@ containernet:
     config_file: predefined.node_config.yaml
     init_script: init_node.sh
 
+host_config:
+  env:
+    - ENV_BATS_XXX_INTERVAL: "100"
+
 tests:
   test20:
     description: "Test sshping"
