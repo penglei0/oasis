@@ -95,6 +95,7 @@ Oasis now builds the nested Containernet image from the bundled `containernet/` 
 
 ## Additional docs
 
+- Architecture deep dive: [docs/arch.md](docs/arch.md)
 - Supported protocols and tools: [docs/protocols_and_tools.md](docs/protocols_and_tools.md)
 - Get started guide: [docs/get-started.md](docs/get-started.md)
 - Flow competition tests example: [docs/flow_competition_test.md](docs/flow_competition_test.md)
