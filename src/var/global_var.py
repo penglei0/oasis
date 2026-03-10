@@ -1,5 +1,5 @@
 # mapping oasis workspace to root path
-from var.settings import OasisSettings  # pylint: disable=wrong-import-position
+from var.settings import OasisSettings
 
 _default_settings = OasisSettings()
 g_root_path = _default_settings.root_path
