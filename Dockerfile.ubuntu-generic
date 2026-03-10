@@ -4,6 +4,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:${PATH}"
 
+#RUN cp /etc/apt/sources.list /etc/apt/sources.list.bak && \
+#    sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list && \
+#    sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list
+
 RUN set -eux; \
         apt-get update; \
         apt-get upgrade --yes;
