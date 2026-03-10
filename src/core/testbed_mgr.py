@@ -26,7 +26,7 @@ class TestbedManager(INetworkManager):
         self.networks = []
         self.net_num = 0
         self.cur_top = None
-        self.type = NetworkType.containernet
+        self.type = NetworkType.testbed
 
     def get_top_description(self):
         if len(self.networks) > 0:

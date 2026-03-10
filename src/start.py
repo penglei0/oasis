@@ -3,7 +3,7 @@ import sys
 import argparse
 import logging
 
-from var.global_var import g_root_path
+from var.settings import OasisSettings
 from tools.util import parse_test_file_name
 from containernet.containernet import (
     NestedContainernet, load_nested_config)
@@ -134,8 +134,9 @@ if __name__ == '__main__':
     if not nested_env:
         logging.info("Error: failed to build the nested containernet.")
         sys.exit(1)
+    oasis_settings = OasisSettings()
     nested_env.start()
     nested_env.execute(
-        f"python3 {g_root_path}src/run_test.py {yaml_base_path} {oasis_workspace} "
+        f"python3 {oasis_settings.root_path}src/run_test.py {yaml_base_path} {oasis_workspace} "
         f"{ns.tests_config_file} {debug_log} {halt}")
     nested_env.stop()

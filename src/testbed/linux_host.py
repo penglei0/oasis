@@ -3,7 +3,7 @@ import subprocess
 import os
 
 from interfaces.host import IHost
-from var.global_var import g_root_path
+from var.settings import DEFAULT_ROOT_PATH
 from .config import HostConfig
 
 
@@ -13,13 +13,14 @@ class LinuxHost(IHost):
        Define the way to interact with a Linux host.
     """
 
-    def __init__(self, config: HostConfig):
+    def __init__(self, config: HostConfig, root_path=DEFAULT_ROOT_PATH):
         self.host_config = config
+        self.root_path = root_path
         if self.host_config.ip is None:
             raise ValueError("The host IP is None.")
         if self.host_config.user is None:
             raise ValueError("The host user is None.")
-        private_key = f"{g_root_path}{self.host_config.authorized_key}"
+        private_key = f"{self.root_path}{self.host_config.authorized_key}"
         # check if the private key exists.
         if not os.path.exists(private_key):
             raise FileNotFoundError(
@@ -82,7 +83,7 @@ class LinuxHost(IHost):
         # clean up all tc qdisc rules.
         for intf in self.intf_list:
             # src/tools/tc_rules.sh
-            self.cmd(f"{g_root_path}src/tools/tc_rules.sh {intf} unset")
+            self.cmd(f"{self.root_path}src/tools/tc_rules.sh {intf} unset")
 
     def get_host(self):
         return self

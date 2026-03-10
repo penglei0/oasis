@@ -5,7 +5,7 @@ from enum import IntEnum
 from dataclasses import dataclass, field
 from typing import (Optional, List)
 from protosuites.proto_info import IProtoInfo
-from var.global_var import g_root_path
+from var.settings import DEFAULT_ROOT_PATH
 
 
 class ProtoType(IntEnum):
@@ -38,6 +38,7 @@ class ProtoConfig:
     test_name: str = field(default="")
     protocols: Optional[List['ProtoConfig']] = field(default=None)
     config_base_path: Optional[str] = field(default=None)
+    root_path: str = field(default=DEFAULT_ROOT_PATH)
 
 
 SupportedProto = ['btp', 'brtp', 'brtp_proxy', 'tcp', 'kcp']
@@ -50,12 +51,13 @@ class IProtoSuite(IProtoInfo, ABC):
         self.proto_role = role
         self.is_success = False
         self.config = config
+        root_path = self.config.root_path
         # save configs
-        self.log_config_dir = f"{g_root_path}test_results/{self.config.test_name}/{self.config.name}/config/"
+        self.log_config_dir = f"{root_path}test_results/{self.config.test_name}/{self.config.name}/config/"
         if not os.path.exists(f"{self.log_config_dir}"):
             os.makedirs(f"{self.log_config_dir}")
         # save logs
-        self.log_dir = f"{g_root_path}test_results/{self.config.test_name}/{self.config.name}/log/"
+        self.log_dir = f"{root_path}test_results/{self.config.test_name}/{self.config.name}/log/"
         if not os.path.exists(f"{self.log_dir}"):
             os.makedirs(f"{self.log_dir}")
 

@@ -4,7 +4,7 @@ import random
 import time
 import yaml
 from tools.util import is_same_path
-from var.global_var import g_root_path
+from var.settings import OasisSettings
 from core.config import (NestedConfig)
 
 
@@ -49,13 +49,16 @@ class NestedContainernet():
     on the Nested Containernet.
     """
 
-    def __init__(self, config: NestedConfig, yaml_base_path: str, oasis_workspace: str, test_name: str):
+    def __init__(self, config: NestedConfig, yaml_base_path: str,
+                 oasis_workspace: str, test_name: str,
+                 settings=None):
         self.config = config
         self.yaml_base_path = yaml_base_path
         self.oasis_workspace = oasis_workspace
         self.test_name = test_name
         self.test_container_name = ""
         self.start_time = time.time()
+        self.settings = settings if settings is not None else OasisSettings()
         self.user_name = oasis_workspace.split("/")[2]
         logging.info(
             "NestedContainernet user_name: %s", self.user_name)
@@ -141,18 +144,18 @@ class NestedContainernet():
             return
         install_cmd = f"docker exec {self.test_container_name} "\
             f"/bin/bash -c \"python3 -m pip install --no-cache-dir -r "\
-            f"{g_root_path}src/containernet/requirements.txt\""
+            f"{self.settings.root_path}src/containernet/requirements.txt\""
         logging.info(
             f"Oasis install containernet dependencies \" %s \"", install_cmd)
         os.system(install_cmd)
 
     def patch(self):
         '''Apply patches to the nested containernet source code.'''
-        for _, _, files in os.walk(f"{g_root_path}patch"):
+        for _, _, files in os.walk(f"{self.settings.root_path}patch"):
             for patch_file in files:
                 if patch_file.endswith(".patch"):
                     patch_cmd = f"docker exec {self.test_container_name} "\
-                        f"/bin/bash -c \"cd / && patch -p0 < {g_root_path}patch/{patch_file}\""
+                        f"/bin/bash -c \"cd / && patch -p0 < {self.settings.root_path}patch/{patch_file}\""
                     os.system(patch_cmd)
                     logging.info(
                         f"Oasis execute patch command \" %s \"", patch_cmd)
@@ -176,7 +179,7 @@ class NestedContainernet():
         # 1. mount oasis_workspace directory to /root
         self.formatted_mounts = f" --mount "\
             f"type=bind,source={self.oasis_workspace},"\
-            f"target={g_root_path},bind-propagation=shared "
+            f"target={self.settings.root_path},bind-propagation=shared "
         # 2. use the repo from `self.config.containernet_repo_path`
         if self.config.containernet_repo_from_user and self.config.containernet_repo_path:
             repo_path = self.config.containernet_repo_path.replace(
@@ -193,13 +196,13 @@ class NestedContainernet():
             logging.info(
                 "NestedContainernet:: No config path mapping is needed.")
         else:
-            # 2. mount yaml_base_path directory to {g_root_path}user/
+            # 2. mount yaml_base_path directory to {root_path}user/
             self.formatted_mounts += f"--mount "\
                 f"type=bind,source={self.yaml_base_path},"\
-                f"target={g_root_path}user/,bind-propagation=shared "
+                f"target={self.settings.root_path}user/,bind-propagation=shared "
             logging.info(
                 "NestedContainernet:: Oasis yaml config files base path %s mapped to `%s/user/`.",
-                self.yaml_base_path, g_root_path)
+                self.yaml_base_path, self.settings.root_path)
             logging.info(
                 "NestedContainernet:: yaml_base_path %s,"
                 "oasis_workspace%s", self.yaml_base_path, self.oasis_workspace)

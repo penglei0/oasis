@@ -13,7 +13,7 @@ from tools.util import (
     parse_test_file_name,
     resolve_node_config_reference,
 )
-from var.global_var import g_root_path
+from var.settings import OasisSettings
 from core.config import (IConfig, NodeConfig, load_all_tests)
 from core.network_factory import (create_network_mgr)
 from core.runner import TestRunner
@@ -52,15 +52,19 @@ def containernet_node_config(config_base_path, file_path) -> NodeConfig:
     return NodeConfig(name="", img="")
 
 
-def load_containernet_config(mapped_config_path, yaml_test_file, source_workspace, original_config_path):
+def load_containernet_config(mapped_config_path, yaml_test_file,
+                             source_workspace, original_config_path,
+                             settings=None):
+    if settings is None:
+        settings = OasisSettings()
     # print all input parameters
     node_config = containernet_node_config(mapped_config_path, yaml_test_file)
     if node_config is None or node_config.name == "":
         logging.error("Error: no containernet node config.")
         sys.exit(1)
     # mount the workspace
-    node_config.vols.append(f'{source_workspace}:{g_root_path}')
-    if mapped_config_path == f'{g_root_path}user/':
+    node_config.vols.append(f'{source_workspace}:{settings.root_path}')
+    if mapped_config_path == f'{settings.root_path}user/':
         node_config.vols.append(
             f'{original_config_path}:{mapped_config_path}')
     return node_config
@@ -114,21 +118,22 @@ if __name__ == '__main__':
     logging.info("Python version: %s", platform.python_version())
     logging.info("Yaml config path: %s", yaml_config_base_path)
     logging.info("Oasis workspace: %s", oasis_workspace)
+    oasis_settings = OasisSettings()
     # config_path can be
-    # In Users' project workspace:   `{g_root_path}user/`
-    # in Oasis workspace:           `{g_root_path}test`
+    # In Users' project workspace:   `{root_path}user/`
+    # in Oasis workspace:           `{root_path}test`
     if is_same_path(yaml_config_base_path, f"{oasis_workspace}/test/"):
-        # oasis workspace mapped to `{g_root_path}`
+        # oasis workspace mapped to `{root_path}`
         # no additional mapping is needed since oasis config is already in the path.
         logging.info("No config path mapping is needed.")
-        config_path = f'{g_root_path}test/'
+        config_path = f'{oasis_settings.root_path}test/'
     else:
-        # oasis yaml config files mapped to `{g_root_path}user/`
+        # oasis yaml config files mapped to `{root_path}user/`
         # this is for using oasis in outside the oasis workspace
-        config_path = f'{g_root_path}user/'
+        config_path = f'{oasis_settings.root_path}user/'
         logging.info(
            f"Oasis yaml config files `%s` mapped to `%s`.", yaml_config_base_path, config_path)
-    oasis_mapped_prefix = f'{g_root_path}'
+    oasis_mapped_prefix = f'{oasis_settings.root_path}'
     logging.info(
         f"run_test.py: Base path of the oasis project: %s", oasis_workspace)
     running_in_nested = not is_base_path(os.getcwd(), oasis_workspace)
@@ -162,7 +167,8 @@ if __name__ == '__main__':
         logging.info("##### running tests on containernet.")
         network_manager = create_network_mgr(NetworkType.containernet)
         cur_hosts_config = load_containernet_config(
-            config_path, yaml_test_file_path, oasis_workspace, yaml_config_base_path)
+            config_path, yaml_test_file_path, oasis_workspace,
+            yaml_config_base_path, oasis_settings)
     else:
         logging.info("##### running tests on testbed.")
         network_manager = create_network_mgr(NetworkType.testbed)
@@ -190,7 +196,8 @@ if __name__ == '__main__':
         # 1.1 The topology in one case can be composed of multiple topologies:
         #      Traverse all the topologies in the test case.
         for index, cur_top_ins in enumerate(loaded_topologies):
-            test_runner = TestRunner(test.yaml(), config_path, network_manager)
+            test_runner = TestRunner(test.yaml(), config_path, network_manager,
+                                    oasis_settings.root_path)
             test_runner.init(cur_hosts_config, cur_top_ins)
             if not test_runner.is_ready():
                 test_runner.handle_failure()
@@ -209,6 +216,6 @@ if __name__ == '__main__':
         # # for index, cur_top_ins in enumerate(loaded_topologies):
     # # for test in loaded_tests:
     # create a regular file to indicate the test success
-    with open(f"{g_root_path}test_results/test.success", 'w', encoding='utf-8') as f_success:
+    with open(f"{oasis_settings.root_path}test_results/test.success", 'w', encoding='utf-8') as f_success:
         f_success.write(f"test.success")
     sys.exit(0)

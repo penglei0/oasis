@@ -1,4 +1,7 @@
 # mapping oasis workspace to root path
-g_root_path = '/root/oasis/'
+from var.settings import OasisSettings  # pylint: disable=wrong-import-position
+
+_default_settings = OasisSettings()
+g_root_path = _default_settings.root_path
 # after oasis workspace is mapped, the root fs path is at
-g_oasis_root_fs = '/root/oasis/test/rootfs/'
+g_oasis_root_fs = _default_settings.root_fs_path

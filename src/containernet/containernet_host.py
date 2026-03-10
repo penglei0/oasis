@@ -1,6 +1,5 @@
 import logging
 from interfaces.host import IHost
-from var.global_var import g_root_path # pylint: disable=W0611
 
 
 class ContainernetHostAdapter(IHost):
