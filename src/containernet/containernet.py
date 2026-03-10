@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import shlex
 import time
 import yaml
 from tools.util import is_same_path
@@ -41,6 +42,17 @@ def load_nested_config(nested_config_file: str,
                 f"loaded containernet: %s", containernet_list[containernet])
             return NestedConfig(**containernet_list[containernet])
     return NestedConfig(image="")
+
+
+def get_passthrough_env_args() -> str:
+    """Build docker run env flags for selected host environment variables."""
+    env_names = ["OASIS_NODE_CONFIG_NAME"]
+    env_args = ""
+    for env_name in env_names:
+        env_value = os.getenv(env_name, "").strip()
+        if env_value:
+            env_args += f" --env {env_name}={shlex.quote(env_value)}"
+    return env_args
 
 
 class NestedContainernet():
@@ -125,6 +137,7 @@ class NestedContainernet():
                 start_cmd += f" --add-host='{dns_resolve}'"
         if self.config.privileged:
             start_cmd += " --privileged "
+        start_cmd += get_passthrough_env_args()
         start_cmd += f" --network {self.config.network_mode}"
         start_cmd += f" --pid {self.config.network_mode}"
         start_cmd += f" {self.formatted_mounts}"

@@ -1,4 +1,7 @@
 import unittest
+from unittest.mock import patch
+
+from containernet.containernet import get_passthrough_env_args
 from src.tools.util import is_same_path
 from src.tools.util import is_base_path
 from src.tools.util import str_to_mbps
@@ -110,6 +113,17 @@ class TestStrToMbps(unittest.TestCase):
                 'config_name': 'ubuntu-24.04',
                 'config_file': 'predefined.node_config.yaml'
             })
+
+    def test_get_passthrough_env_args_without_override(self):
+        with patch.dict("os.environ", {}, clear=False):
+            self.assertEqual(get_passthrough_env_args(), "")
+
+    def test_get_passthrough_env_args_with_override(self):
+        with patch.dict("os.environ", {"OASIS_NODE_CONFIG_NAME": "ubuntu-24.04"}, clear=False):
+            self.assertEqual(
+                get_passthrough_env_args(),
+                " --env OASIS_NODE_CONFIG_NAME=ubuntu-24.04",
+            )
 
 
 if __name__ == '__main__':
