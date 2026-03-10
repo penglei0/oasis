@@ -21,10 +21,10 @@ The existing repository diagram in `docs/imgs/oasis_arch.svg` and the implementa
 The main execution path is:
 
 ```text
-run_test.sh
+./src/tools/run_test.sh
   -> start.py
      -> NestedContainernet.start()
-     -> docker exec python3 /root/src/run_test.py ...
+     -> docker exec python3 /root/oasis/src/run_test.py ...
         -> load_all_tests()
         -> load node/topology/protocol/test definitions
         -> create_network_mgr()
