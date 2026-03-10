@@ -1,12 +1,12 @@
 import unittest
-from unittest.mock import patch
-
-from containernet.containernet import get_passthrough_env_args
 from src.tools.util import is_same_path
 from src.tools.util import is_base_path
 from src.tools.util import str_to_mbps
 from src.tools.util import parse_test_file_name
+from src.tools.util import normalize_env_map
+from src.tools.util import merge_env_values
 from src.tools.util import resolve_node_config_reference
+from src.tools.util import resolve_node_image
 
 
 class TestIsSamePath(unittest.TestCase):
@@ -114,16 +114,24 @@ class TestStrToMbps(unittest.TestCase):
                 'config_file': 'predefined.node_config.yaml'
             })
 
-    def test_get_passthrough_env_args_without_override(self):
-        with patch.dict("os.environ", {}, clear=False):
-            self.assertEqual(get_passthrough_env_args(), "")
+    def test_normalize_env_map_from_list(self):
+        envs = [{"A": "1"}, {"B": 2}]
+        self.assertEqual(normalize_env_map(envs), {"A": "1", "B": "2"})
 
-    def test_get_passthrough_env_args_with_override(self):
-        with patch.dict("os.environ", {"OASIS_NODE_CONFIG_NAME": "ubuntu-24.04"}, clear=False):
-            self.assertEqual(
-                get_passthrough_env_args(),
-                " --env OASIS_NODE_CONFIG_NAME=ubuntu-24.04",
-            )
+    def test_merge_env_values_node_takes_precedence(self):
+        host_env = [{"A": "1"}, {"B": "2"}]
+        node_env = {"B": "22", "C": "3"}
+        self.assertEqual(merge_env_values(host_env, node_env),
+                         {"A": "1", "B": "22", "C": "3"})
+
+    def test_resolve_node_image_with_override(self):
+        self.assertEqual(resolve_node_image("ubuntu-generic:22.04",
+                                            "ubuntu-generic:24.04"),
+                         "ubuntu-generic:24.04")
+
+    def test_resolve_node_image_without_override(self):
+        self.assertEqual(resolve_node_image("ubuntu-generic:22.04", " "),
+                         "ubuntu-generic:22.04")
 
 
 if __name__ == '__main__':

@@ -50,6 +50,11 @@ def parse_args():
                         dest='halt',
                         type=str,
                         default="False")
+    parser.add_argument('--node',
+                        help='override node image for hosts in containernet',
+                        dest='node_image',
+                        type=str,
+                        default="")
     return parser
 
 
@@ -82,6 +87,7 @@ if __name__ == '__main__':
     yaml_base_path = ns.yaml_base_path
     debug_log = ns.debug_log
     halt = ns.halt
+    node_image = ns.node_image
     if debug_log == 'True':
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',
                             datefmt='%Y-%m-%d %H:%M:%S')
@@ -137,5 +143,5 @@ if __name__ == '__main__':
     nested_env.start()
     nested_env.execute(
         f"python3 {g_root_path}src/run_test.py {yaml_base_path} {oasis_workspace} "
-        f"{ns.tests_config_file} {debug_log} {halt}")
+        f"{ns.tests_config_file} {debug_log} {halt} {node_image}")
     nested_env.stop()

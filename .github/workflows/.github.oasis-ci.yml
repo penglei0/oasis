@@ -87,22 +87,16 @@ jobs:
           echo "Licence_id=${{secrets.BATS_LICENCE_ID}}" >> ${{github.workspace}}/test/rootfs/etc/cfg/licence
       - name: SSHPing tests
         working-directory: ${{github.workspace}}/
-        env:
-          OASIS_NODE_CONFIG_NAME: ${{ matrix.host.name }}
         run: |
-          ./src/tools/run_test.sh protocol-sshping-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }}
+          ./src/tools/run_test.sh protocol-sshping-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --node=${{ matrix.host.tag }}
       - name: SCP test
         working-directory: ${{github.workspace}}/
-        env:
-          OASIS_NODE_CONFIG_NAME: ${{ matrix.host.name }}
         run: |
-          ./src/tools/run_test.sh protocol-scp-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }}
+          ./src/tools/run_test.sh protocol-scp-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --node=${{ matrix.host.tag }}
       - name: Throughput tests
         working-directory: ${{github.workspace}}/
-        env:
-          OASIS_NODE_CONFIG_NAME: ${{ matrix.host.name }}
         run: |
-          ./src/tools/run_test.sh protocol-ci-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }}
+          ./src/tools/run_test.sh protocol-ci-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --node=${{ matrix.host.tag }}
       - name: Upload test logs
         uses: actions/upload-artifact@v4
         continue-on-error: true

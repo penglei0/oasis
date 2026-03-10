@@ -1,4 +1,5 @@
 import os
+from typing import Any, Dict, Mapping
 
 
 def is_same_path(file_path1, file_path2):
@@ -66,3 +67,33 @@ def resolve_node_config_reference(node_config_yaml, override_name):
     resolved_config = dict(node_config_yaml)
     resolved_config["config_name"] = override_name
     return resolved_config
+
+
+def normalize_env_map(env_value: Any) -> Dict[str, str]:
+    """Normalize env entries from mapping/list formats into a flat dict."""
+    if env_value is None:
+        return {}
+    if isinstance(env_value, Mapping):
+        return {str(k): str(v) for k, v in env_value.items()}
+    if isinstance(env_value, list):
+        normalized_env: Dict[str, str] = {}
+        for env_item in env_value:
+            if isinstance(env_item, Mapping):
+                for key, value in env_item.items():
+                    normalized_env[str(key)] = str(value)
+        return normalized_env
+    return {}
+
+
+def merge_env_values(host_env: Any, node_env: Any) -> Dict[str, str]:
+    """Merge host-wide env and node env with node values taking precedence."""
+    merged_env = normalize_env_map(host_env)
+    merged_env.update(normalize_env_map(node_env))
+    return merged_env
+
+
+def resolve_node_image(default_image: str, override_image: str) -> str:
+    """Use override image when provided, otherwise keep default image."""
+    if override_image and override_image.strip():
+        return override_image.strip()
+    return default_image
