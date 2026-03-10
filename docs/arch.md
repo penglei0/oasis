@@ -1,6 +1,6 @@
 # Oasis Architecture
 
-Oasis is a **Containernet-based network emulation platform** for validating transport protocols across configurable topologies, routing strategies, and link characteristics. At a high level, the system turns YAML definitions into one or more runtime networks, deploys protocol implementations into those networks, executes reusable test suites, and post-processes the generated logs into analyzer artifacts such as SVG charts.
+Oasis is a **Containernet-based network emulation platform** for validating transport protocols across configurable topologies, routing strategies, and link characteristics. At a high level, the system turns YAML definitions into runtime networks, deploys protocol implementations into those networks, executes reusable test suites, and post-processes the generated logs into analyzer artifacts such as SVG charts.
 
 This document summarizes the current architecture implemented in the repository and highlights the refactorings that would most improve maintainability and flexibility.
 
@@ -95,7 +95,7 @@ A topology produces adjacency/bandwidth/loss/latency/jitter matrices. `Container
 - `src/protosuites/std_protocol.py`: default wrapper for generic distributed protocols.
 - `src/protosuites/cs_protocol.py`: wrapper for client/server style non-distributed protocols.
 - `src/protosuites/noop_protocol.py`: no-op protocol used for “next”/pass-through cases.
-- `src/protosuites/bats/`: BATS-specific implementations (`BTP`, `BRTP`, `BRTPProxy`).
+- `src/protosuites/bats/`: BATS-specific implementations (`BTP`, `BRTP`, `BRTPProxy`) for the BATS transport stack used by Oasis benchmarks.
 
 The protocol layer is intentionally pluggable. YAML names map to concrete protocol suite classes in `src/core/runner.py`.
 
@@ -221,7 +221,7 @@ Many classes write directly to `g_root_path`-derived locations during object con
 
 ### 7.5 Partial testbed abstraction
 
-The repository exposes a testbed path (`NetworkType.testbed`, `TestbedManager`, `load_testbed_config()`), but the implementation is not yet symmetrical with the Containernet path. For example, `src/run_test.py` currently hard-codes `is_using_testbed = False`, and `src/core/testbed_mgr.py` is mostly placeholder behavior.
+The repository exposes a testbed path (`NetworkType.testbed`, `TestbedManager`, `load_testbed_config()`), but the implementation is not yet symmetrical with the Containernet path. For example, `src/run_test.py` currently hard-codes `is_using_testbed = False`. In addition, `src/core/testbed_mgr.py` is still mostly placeholder behavior.
 
 ### 7.6 Inconsistent error propagation
 
