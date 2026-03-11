@@ -6,9 +6,7 @@ import yaml
 
 from mininet.log import setLogLevel
 
-from interfaces.network_mgr import NetworkType
 from tools.util import (
-    is_same_path,
     is_base_path,
     merge_env_values,
     parse_test_file_name,
@@ -16,9 +14,7 @@ from tools.util import (
 )
 from tools.log_setup import configure_run_logging
 from var.settings import OasisSettings
-from core.config import (IConfig, NodeConfig, load_all_tests)
-from core.network_factory import (create_network_mgr)
-from core.runner import TestRunner
+from core.config import (IConfig, NodeConfig)
 
 
 def containernet_node_config(config_base_path, file_path, host_override: str = "") -> NodeConfig:
@@ -114,6 +110,9 @@ def load_testbed_config(name, yaml_base_path_input):
 
 
 if __name__ == '__main__':
+    from core.test_execution_service import (
+        TestExecutionService, resolve_config_path)
+
     to_halt = 'False'
     debug_log = 'False'
     if len(sys.argv) >= 5:
@@ -135,21 +134,8 @@ if __name__ == '__main__':
     logging.info("Yaml config path: %s", yaml_config_base_path)
     logging.info("Oasis workspace: %s", oasis_workspace)
     oasis_settings = OasisSettings()
-    # config_path can be
-    # In Users' project workspace:   `{root_path}user/`
-    # in Oasis workspace:           `{root_path}test`
-    if is_same_path(yaml_config_base_path, f"{oasis_workspace}/test/"):
-        # oasis workspace mapped to `{root_path}`
-        # no additional mapping is needed since oasis config is already in the path.
-        logging.info("No config path mapping is needed.")
-        config_path = f'{oasis_settings.root_path}test/'
-    else:
-        # oasis yaml config files mapped to `{root_path}user/`
-        # this is for using oasis in outside the oasis workspace
-        config_path = f'{oasis_settings.root_path}user/'
-        logging.info(
-            "Oasis YAML config files `%s` mapped to `%s`.", yaml_config_base_path, config_path)
-    oasis_mapped_prefix = f'{oasis_settings.root_path}'
+    config_path = resolve_config_path(
+        yaml_config_base_path, oasis_workspace, oasis_settings)
     running_in_nested = not is_base_path(os.getcwd(), oasis_workspace)
     if not running_in_nested:
         logging.info("Nested containernet environment is required.")
@@ -168,67 +154,17 @@ if __name__ == '__main__':
         logging.info("%s does not exist.", yaml_test_file_path)
         sys.exit(1)
 
-    is_using_testbed = False
-    cur_hosts_config = None
-    """
-    Initialize the network manager.
-    There are two types of network managers:
-        1. Containernet-based network manager
-        2. Testbed-based network manager (can be a network which consists of physical machines or VMs)
-    """
-    network_manager = None
-    if not is_using_testbed:
-        logging.info("Running tests on containernet.")
-        network_manager = create_network_mgr(NetworkType.containernet)
-        cur_hosts_config = load_containernet_config(
-            config_path, yaml_test_file_path, oasis_workspace, yaml_config_base_path, oasis_settings, selected_host)
-    else:
-        logging.info("Running tests on testbed.")
-        network_manager = create_network_mgr(NetworkType.testbed)
-        cur_hosts_config = load_testbed_config(
-            'testbed_nhop_shenzhen', config_path)
-
-    if network_manager is None:
-        logging.error("Failed to load the appropriate network manager.")
+    service = TestExecutionService(
+        config_path=config_path,
+        yaml_test_file_path=yaml_test_file_path,
+        oasis_workspace=oasis_workspace,
+        yaml_config_base_path=yaml_config_base_path,
+        settings=oasis_settings,
+        host_override=selected_host,
+        halt=(to_halt == 'True'),
+    )
+    if not service.prepare(load_containernet_config):
         sys.exit(1)
-    if to_halt == 'True':
-        logging.info(
-            "Halt mode is enabled. The script will halt after the test is done.")
-        network_manager.enable_halt()
-    # 1. execute all the tests on all constructed networks
-    loaded_tests = load_all_tests(yaml_test_file_path, cur_selected_test)
-    if loaded_tests is None or len(loaded_tests) == 0:
-        logging.error("No test case was found.")
+    if not service.run(cur_selected_test):
         sys.exit(1)
-    for test in loaded_tests:
-        loaded_topologies = test.load_topology(config_path)
-        if not loaded_topologies:
-            logging.error(
-                "Failed to load a topology for test %s.", test.name)
-            continue
-        # 1.1 The topology in one case can be composed of multiple topologies:
-        #      Traverse all the topologies in the test case.
-        for index, cur_top_ins in enumerate(loaded_topologies):
-            test_runner = TestRunner(test.yaml(), config_path, network_manager,
-                                    oasis_settings.root_path)
-            test_runner.init(cur_hosts_config, cur_top_ins)
-            if not test_runner.is_ready():
-                test_runner.handle_failure()
-            # 1.3 Load test to the network instance
-            res = test_runner.setup_tests()
-            if res is False:
-                test_runner.handle_failure()
-            # 1.4 Execute the test on all network instances
-            res = test_runner.execute_tests()
-            if res is False:
-                test_runner.handle_failure()
-            # 1.5 Collect the test results, and analyze/diagnostic the results.
-            res = test_runner.handle_test_results(index)
-            if res is False:
-                test_runner.handle_failure()
-        # # for index, cur_top_ins in enumerate(loaded_topologies):
-    # # for test in loaded_tests:
-    # create a regular file to indicate the test success
-    with open(f"{oasis_settings.root_path}test_results/test.success", 'w', encoding='utf-8') as f_success:
-        f_success.write(f"test.success")
     sys.exit(0)
