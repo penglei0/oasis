@@ -64,14 +64,13 @@ def build_nested_env(containernet_name, yaml_base_path_input, oasis_workspace_in
     absolute_path_of_config_file = os.path.join(
         yaml_base_path_input + "/", 'nested-containernet-config.yaml')
     if not os.path.exists(f'{absolute_path_of_config_file}'):
-        logging.info(f"Error: %s does not exist.", {
-                     absolute_path_of_config_file})
+        logging.info("%s does not exist.", absolute_path_of_config_file)
         return None
     nested_config = load_nested_config(
         absolute_path_of_config_file, containernet_name)
     if nested_config.image == "":
         logging.info(
-            f"Error: %s is not in the nested config file.", containernet_name)
+            "%s is not in the nested config file.", containernet_name)
         sys.exit(1)
     test_name = "default "
     # execute the test cases on nested containernet
@@ -98,22 +97,22 @@ if __name__ == '__main__':
                             datefmt='%Y-%m-%d %H:%M:%S')
         logging.info("Debug mode is disabled.")
     current_process_dir = os.getcwd()
-    logging.info(f"Current directory the process: %s", current_process_dir)
+    logging.info("Current process directory: %s", current_process_dir)
 
     base_path = os.path.dirname(os.path.abspath(__file__))
     oasis_workspace = os.path.dirname(base_path)
-    logging.info(f"Base path of the oasis project: %s", oasis_workspace)
+    logging.info("Oasis workspace path: %s", oasis_workspace)
     if current_process_dir == oasis_workspace:
-        logging.info("running in the workspace directory of oasis")
+        logging.info("Running in the Oasis workspace directory.")
     else:
-        logging.info("running outside the workspace directory of oasis")
+        logging.info("Running outside the Oasis workspace directory.")
     # ############### workspace dir and process dir ################
     # (1) python source files are always started from the `oasis_workspace`
     # (2) yaml/json configuration files are always started from the `yaml_base_path`
     # ##############################################################
     cur_test_yaml_file, _ = parse_test_file_name(cur_test_yaml_file)
     if not cur_test_yaml_file:
-        logging.info("Error: invalid test file name.")
+        logging.info("Invalid test file name.")
         sys.exit(1)
     # check whether yaml_base_path is an absolute path
     if not os.path.isabs(yaml_base_path):
@@ -121,14 +120,14 @@ if __name__ == '__main__':
     test_case_file = os.path.join(
         yaml_base_path, cur_test_yaml_file)
     if not os.path.exists(f'{test_case_file}'):
-        logging.info(f"Error: %s does not exist.", {test_case_file})
+        logging.info("%s does not exist.", test_case_file)
         sys.exit(1)
     # @Note: Oasis support test on containernet and bare metal testbed.
     #        For containernet, network is constructed and maintained by containernet.
     #        For bare metal testbed, network is constructed by real physical machines.
     if nested_containernet == "" and baremetal_testbed == "":
         logging.info(
-            "Error: neither nested_containernet nor baremetal_testbed is provided.")
+            "Neither nested_containernet nor baremetal_testbed was provided.")
         sys.exit(1)
     if nested_containernet != "" and baremetal_testbed == "":
         logging.info("Oasis is running on nested containernet.")
@@ -139,7 +138,7 @@ if __name__ == '__main__':
     nested_env = build_nested_env(
         nested_containernet, yaml_base_path, oasis_workspace)
     if not nested_env:
-        logging.info("Error: failed to build the nested containernet.")
+        logging.info("Failed to build the nested containernet.")
         sys.exit(1)
     oasis_settings = OasisSettings()
     nested_env.start()

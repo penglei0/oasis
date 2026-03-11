@@ -134,6 +134,20 @@ class TestLoadAllTests(unittest.TestCase):
         # Verify the result is empty
         self.assertEqual(len(result), 0)
 
+    @patch('builtins.open')
+    @patch('yaml.safe_load')
+    def test_load_all_tests_with_none_test_cases_logs_info(self, mock_yaml_load, mock_open):
+        mock_yaml_load.return_value = {"tests": None}
+
+        with self.assertLogs(level='INFO') as log_context:
+            result = load_all_tests('test.yaml')
+
+        self.assertEqual(result, [])
+        self.assertTrue(
+            any("No test cases were loaded from test.yaml." in entry
+                for entry in log_context.output)
+        )
+
     def test_bats_iperf_config_validation(self):
         repo_root = self.find_repo_root()
         tests = load_all_tests(str(repo_root / 'test' / 'protocol-ci-test.yaml'))

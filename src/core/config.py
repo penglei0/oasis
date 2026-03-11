@@ -116,12 +116,12 @@ class IConfig(ABC):
         if config_key == "node_config":
             loaded_config["init_script"] = scripts
             loaded_config["env"] = _normalize_env(envs)
-            logging.error(
-                '###########################load_config_reference: loaded %s', loaded_config)
+            logging.info(
+                'load_config_reference: loaded %s', loaded_config)
             return NodeConfig(**loaded_config)
         if config_key == "topology":
             logging.info(
-                '###########################load_config_reference: loaded %s', loaded_config)
+                'load_config_reference: loaded %s', loaded_config)
             return TopologyConfig(**loaded_config)
         return None
 
@@ -177,25 +177,24 @@ class Test:
         """Load network related configuration from the yaml file.
         """
         if 'topology' not in self.test_yaml:
-            logging.error("Error: missing key topology in the test case yaml.")
+            logging.error("Missing key topology in the test case YAML.")
             return None
         local_yaml = self.test_yaml['topology']
-        logging.info(f"Test: local_yaml %s",
-                     local_yaml)
+        logging.info("Test local YAML: %s", local_yaml)
         if local_yaml is None:
-            logging.error("Error: content of topology is None.")
+            logging.error("Topology content is None.")
             return None
         loaded_conf = IConfig.load_yaml_config(config_base_path,
                                                local_yaml,
                                                'topology')
         if loaded_conf is None or not isinstance(loaded_conf, TopologyConfig):
-            logging.error("Error: loaded_conf of topology is None.")
+            logging.error("Loaded topology configuration is None.")
             return None
         if loaded_conf.topology_type == "linear":
             return LinearTopology(config_base_path, loaded_conf)
         if loaded_conf.topology_type == "mesh":
             return MeshTopology(config_base_path, loaded_conf, True)
-        logging.error("Error: unsupported topology type.")
+        logging.error("Unsupported topology type.")
         return None
 
 
@@ -221,7 +220,7 @@ def load_all_tests(test_yaml_file: str, test_name: str = "all") -> List[Test]:
     test_cases = yaml_content["tests"]
     # ------------------------------------------------
     if test_cases is None:
-        logging.error("No test cases are loaded from %s", test_yaml_file)
+        logging.info("No test cases were loaded from %s.", test_yaml_file)
         return []
     active_test_list = []
     if test_name in ("all", "All", "ALL"):
@@ -234,9 +233,9 @@ def load_all_tests(test_yaml_file: str, test_name: str = "all") -> List[Test]:
         test = Test(test_cases[name], name)
         if test.is_active():
             active_test_list.append(test)
-            logging.info(f"case %s is enabled!", name)
+            logging.info("Case %s is enabled.", name)
         else:
-            logging.info(f"case %s is disabled!", name)
+            logging.info("Case %s is disabled.", name)
     if len(active_test_list) == 0:
-        logging.info(f"No active test case in %s", test_yaml_file)
+        logging.info("No active test case in %s.", test_yaml_file)
     return active_test_list
