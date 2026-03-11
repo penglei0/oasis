@@ -16,7 +16,8 @@ class TestLoadAllTests(unittest.TestCase):
             if (parent / '.git').exists():
                 return parent
         raise FileNotFoundError(
-            "Could not locate repository root (no .git directory found in parent directories).")
+            f"Could not locate repository root starting from {current} "
+            "(no .git directory found in parent directories).")
 
     @patch('builtins.open')
     @patch('yaml.safe_load')
@@ -138,7 +139,9 @@ class TestLoadAllTests(unittest.TestCase):
         tests = load_all_tests(str(repo_root / 'test' / 'protocol-ci-test.yaml'))
 
         test3 = next((test for test in tests if test.name == 'test3'), None)
-        self.assertIsNotNone(test3, "test3 not found in loaded tests")
+        self.assertIsNotNone(
+            test3,
+            f"test3 not found in loaded tests. Available tests: {[test.name for test in tests]}")
         test_tools = test3.yaml()['test_tools']
 
         self.assertEqual(set(test_tools.keys()), {'bats_iperf'})
