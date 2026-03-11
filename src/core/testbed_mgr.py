@@ -14,7 +14,7 @@ def load_all_hosts(testbed_yaml_config):
     if len(hosts_config) == 0:
         logging.info("No hosts were loaded for the testbed.")
         return None
-    return False
+    return hosts_config
 
 
 class TestbedManager(INetworkManager):
