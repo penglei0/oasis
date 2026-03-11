@@ -14,6 +14,7 @@ from tools.util import (
     parse_test_file_name,
     resolve_host_image_reference,
 )
+from tools.log_setup import configure_run_logging
 from var.settings import OasisSettings
 from core.config import (IConfig, NodeConfig, load_all_tests)
 from core.network_factory import (create_network_mgr)
@@ -124,12 +125,9 @@ if __name__ == '__main__':
         selected_host = sys.argv[6]
     if debug_log == 'True':
         setLogLevel('debug')
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
     else:
         setLogLevel('warning')
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
+    configure_run_logging(debug_log == 'True', OasisSettings().root_path)
     yaml_config_base_path = sys.argv[1]
     oasis_workspace = sys.argv[2]
     logging.info("Platform: %s", platform.platform())
