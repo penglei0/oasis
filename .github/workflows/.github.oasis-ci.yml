@@ -24,6 +24,9 @@ concurrency:
 jobs:
   oasis-run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -57,30 +60,20 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install -r ${{github.workspace}}/src/containernet/requirements.txt
-      - name: Capture containernet submodule sha
-        run: echo "CONTAINERNET_SUBMODULE_SHA=$(git -C containernet rev-parse HEAD)" >> "$GITHUB_ENV"
-      - name: Restore Docker Images
-        id: cached-docker-images
-        uses: actions/cache@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          path: ${{github.workspace}}/images/
-          key: docker_cache-${{ runner.os }}-${{ matrix.containernet.ubuntu_version }}-${{ matrix.host.ubuntu_version }}-${{ env.CONTAINERNET_SUBMODULE_SHA }}-${{ hashFiles('Dockerfile.containernet', 'Dockerfile.ubuntu-generic', 'Dockerfile.ubuntu-generic-lttng', 'docker/requirements/*.txt') }}
-      - name: Build Docker Images
-        if: steps.cached-docker-images.outputs.cache-hit != 'true'
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker Images
         working-directory: ${{github.workspace}}/
         run: |
-          mkdir -p ${{github.workspace}}/images/
-          docker build -t ${{ matrix.containernet.tag }} --build-arg UBUNTU_VERSION=${{ matrix.containernet.ubuntu_version }} -f Dockerfile.containernet .
-          docker build -t ${{ matrix.host.tag }} --build-arg UBUNTU_VERSION=${{ matrix.host.ubuntu_version }} -f Dockerfile.ubuntu-generic .
-          docker image save ${{ matrix.containernet.tag }} --output ${{github.workspace}}/images/containernet-${{ matrix.containernet.ubuntu_version }}.tar
-          docker image save ${{ matrix.host.tag }} --output ${{github.workspace}}/images/ubuntu-generic-${{ matrix.host.ubuntu_version }}.tar
+          docker pull ghcr.io/${{ github.repository }}/containernet:${{ matrix.containernet.ubuntu_version }}
+          docker tag ghcr.io/${{ github.repository }}/containernet:${{ matrix.containernet.ubuntu_version }} ${{ matrix.containernet.tag }}
+          docker pull ghcr.io/${{ github.repository }}/ubuntu-generic:${{ matrix.host.ubuntu_version }}
+          docker tag ghcr.io/${{ github.repository }}/ubuntu-generic:${{ matrix.host.ubuntu_version }} ${{ matrix.host.tag }}
           docker images
-      - name: Load Docker Images
-        working-directory: ${{github.workspace}}/
-        if: steps.cached-docker-images.outputs.cache-hit == 'true'
-        run: |
-          docker image load --input ./images/containernet-${{ matrix.containernet.ubuntu_version }}.tar
-          docker image load --input ./images/ubuntu-generic-${{ matrix.host.ubuntu_version }}.tar
       - name: Loading secrets
         run: |
           echo "Hardware_info=${{secrets.BATS_HARDWARE_INFO}}" >> ${{github.workspace}}/test/rootfs/etc/cfg/licence
