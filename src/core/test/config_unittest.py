@@ -143,6 +143,7 @@ class TestLoadAllTests(unittest.TestCase):
             result = load_all_tests('test.yaml')
 
         self.assertEqual(result, [])
+        mock_open.assert_called_once_with('test.yaml', 'r', encoding='utf-8')
         self.assertTrue(
             any("No test cases were loaded from test.yaml." in entry
                 for entry in log_context.output)
