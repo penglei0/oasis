@@ -211,21 +211,9 @@ Several extension points are selected through long `if`/`elif` blocks or ad-hoc 
 
 This increases coupling and makes feature growth more error-prone.
 
-### 7.3 Global path coupling
-
-Many classes write directly to `g_root_path`-derived locations during object construction, especially in `IProtoSuite` and `ITestSuite`. That couples domain objects to one filesystem layout and makes isolated tests harder.
-
-### 7.4 Large orchestration surface in `TestRunner`
+### 7.3 Large orchestration surface in `TestRunner`
 
 `TestRunner` is responsible for protocol loading, test loading, network allocation, execution, multiprocessing supervision, result merging, analyzer dispatch, and artifact archiving. That is a lot of responsibilities for one class.
-
-### 7.5 Partial testbed abstraction
-
-The repository exposes a testbed path (`NetworkType.testbed`, `TestbedManager`, `load_testbed_config()`), but the implementation is not yet symmetrical with the Containernet path. For example, `src/run_test.py` currently hard-codes `is_using_testbed = False`. In addition, `src/core/testbed_mgr.py` is still mostly placeholder behavior.
-
-### 7.6 Inconsistent error propagation
-
-Some layers return booleans, others log and continue, and top-level scripts often call `sys.exit()`. This makes control flow more difficult to reason about and complicates automated recovery or richer error reporting.
 
 ## 8. High-value refactorings and refinements
 
