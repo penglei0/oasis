@@ -7,14 +7,19 @@ from typing import Any, Dict, Mapping
 def _load_normalize_env():
     for module_name in ("core.config", "src.core.config"):
         try:
-            return getattr(importlib.import_module(module_name), "_normalize_env")
-        except ImportError:  # pragma: no cover
+            module = importlib.import_module(module_name)
+            return getattr(module, "_normalize_env")
+        except (ImportError, AttributeError):  # pragma: no cover
             continue
 
     src_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if src_root not in sys.path:
         sys.path.insert(0, src_root)
-    return getattr(importlib.import_module("core.config"), "_normalize_env")
+    try:
+        module = importlib.import_module("core.config")
+        return getattr(module, "_normalize_env")
+    except (ImportError, AttributeError) as exc:  # pragma: no cover
+        raise RuntimeError("Failed to load _normalize_env from core.config.") from exc
 
 
 _normalize_env = _load_normalize_env()
