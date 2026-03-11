@@ -45,11 +45,11 @@ def containernet_node_config(config_base_path, file_path, host_override: str = "
     legacy_node_config_yaml = legacy_containernet_yaml.get("node_config", {})
     legacy_host_config_yaml = yaml_content.get("host_config", {})
 
-    if isinstance(host_yaml, dict) and "image" in host_yaml:
+    if "image" in host_yaml:
         host_image_yaml = host_yaml.get("image", {})
         node_config_yaml = resolve_host_image_reference(host_image_yaml, host_override)
         node_config_yaml["init_script"] = host_yaml.get("init_script", "")
-    elif isinstance(legacy_node_config_yaml, dict):
+    elif legacy_node_config_yaml:
         node_config_yaml = copy.deepcopy(legacy_node_config_yaml)
         if host_override and host_override.strip():
             node_config_yaml["config_name"] = host_override.strip()

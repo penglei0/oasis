@@ -5,6 +5,8 @@ try:
 except ImportError:  # pragma: no cover
     from src.core.config import _normalize_env
 
+DEFAULT_NODE_CONFIG_PRESETS = "predefined.node_config.yaml"
+
 
 def is_same_path(file_path1, file_path2):
     # check if file_path1 is the same as file_path2
@@ -96,7 +98,7 @@ def resolve_host_image_reference(host_image_yaml: Any, host_override: str) -> Di
     """Resolve host image config as a node config reference."""
     resolved = {
         "config_name": "default",
-        "config_file": "predefined.node_config.yaml",
+        "config_file": DEFAULT_NODE_CONFIG_PRESETS,
     }
     if isinstance(host_image_yaml, Mapping):
         image_name = host_image_yaml.get("name")
@@ -107,5 +109,5 @@ def resolve_host_image_reference(host_image_yaml: Any, host_override: str) -> Di
             resolved["config_file"] = str(image_presets)
     if host_override and host_override.strip():
         resolved["config_name"] = host_override.strip()
-        resolved["config_file"] = "predefined.node_config.yaml"
+        resolved["config_file"] = DEFAULT_NODE_CONFIG_PRESETS
     return resolved
