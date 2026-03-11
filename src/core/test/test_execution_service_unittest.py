@@ -112,7 +112,7 @@ class TestPrepare(unittest.TestCase):
             'testbed_nhop_shenzhen', "/cfg/")
         self.assertEqual(svc.hosts_config, "testbed_cfg")
 
-    def test_prepare_testbed_requires_loader(self):
+    def test_prepare_testbed_requires_testbed_config_loader(self):
         factory = MagicMock(return_value=MagicMock())
         load_hosts_fn = MagicMock()
 
