@@ -124,12 +124,12 @@ class ITopology(ABC):
     def init_all_mats(self):
         # init from json_description or array_description
         if self.top_config.json_description is not None:
-            logging.info(
+            logging.debug(
                 'Load the matrix from json_description')
             self.load_all_mats(
                 self.top_config.json_description)
         elif self.top_config.array_description is not None:
-            logging.info(
+            logging.debug(
                 'Load the matrix from array_description')
             self.adj_matrix = self.generate_adj_matrix(self.top_config.nodes)
             self.all_mats[MatrixType.ADJACENCY_MATRIX] = self.adj_matrix

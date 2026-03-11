@@ -116,11 +116,11 @@ class IConfig(ABC):
         if config_key == "node_config":
             loaded_config["init_script"] = scripts
             loaded_config["env"] = _normalize_env(envs)
-            logging.info(
+            logging.debug(
                 'load_config_reference: loaded %s', loaded_config)
             return NodeConfig(**loaded_config)
         if config_key == "topology":
-            logging.info(
+            logging.debug(
                 'load_config_reference: loaded %s', loaded_config)
             return TopologyConfig(**loaded_config)
         return None

@@ -126,12 +126,10 @@ if __name__ == '__main__':
         setLogLevel('debug')
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',
                             datefmt='%Y-%m-%d %H:%M:%S')
-        logging.info("Debug mode is enabled.")
     else:
         setLogLevel('warning')
         logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
                             datefmt='%Y-%m-%d %H:%M:%S')
-        logging.info("Debug mode is disabled.")
     yaml_config_base_path = sys.argv[1]
     oasis_workspace = sys.argv[2]
     logging.info("Platform: %s", platform.platform())
@@ -154,8 +152,6 @@ if __name__ == '__main__':
         logging.info(
             "Oasis YAML config files `%s` mapped to `%s`.", yaml_config_base_path, config_path)
     oasis_mapped_prefix = f'{oasis_settings.root_path}'
-    logging.info(
-        "run_test.py: Oasis workspace path: %s", oasis_workspace)
     running_in_nested = not is_base_path(os.getcwd(), oasis_workspace)
     if not running_in_nested:
         logging.info("Nested containernet environment is required.")

@@ -75,11 +75,11 @@ class NetworkManager(INetworkManager):
             # stop the extra networks
             for i in range(net_num, cur_net_num):
                 self.networks[i].stop()
-                logging.info("########## Oasis stop the network %s.", i)
+                logging.info("Oasis stop the network %s.", i)
             self.networks = self.networks[:net_num]
         logging.info(
             "######################################################")
-        logging.info("########## Oasis build %d network with top: \n %s .", net_num,
+        logging.info("######## Oasis build %d network with ########: \n \t\t%s .", net_num,
                      topology.description())
         logging.info(
             "######################################################")
@@ -98,20 +98,20 @@ class NetworkManager(INetworkManager):
         for i in range(self.net_num):
             if not self.networks[i].is_started():
                 self.networks[i].start()
-                logging.info("########## Oasis start the network %s.", i)
+                logging.info("Oasis start the network %s.", i)
             else:
                 # reload the network instances can save time
                 self.networks[i].reload(self.cur_top)
-                logging.info("########## Oasis reload the network %s.", i)
+                logging.info("Oasis reload the network %s.", i)
 
     def stop_networks(self):
         # Stop all networks
         if self.enabled_halt:
             while True:
                 time.sleep(10)
-                logging.info("########## Oasis halt the destroy of networks.")
+                logging.info("Oasis halt the destroy of networks.")
         for i in range(self.net_num):
-            logging.info("########## Oasis stop the network %s.", i)
+            logging.info("Oasis stop the network %s.", i)
             self.networks[i].stop()
         self.networks = []
         self.net_num = 0
@@ -120,11 +120,11 @@ class NetworkManager(INetworkManager):
         if self.enabled_halt:
             while True:
                 time.sleep(10)
-                logging.info("########## Oasis halt the reset of networks.")
+                logging.info("Oasis halt the reset of networks.")
         # Reset all networks, mainly for routes/tc rules/ip config.
         for i in range(self.net_num):
             self.networks[i].reset()
-            logging.info("########## Oasis reset the network %s.", i)
+            logging.info("Oasis reset the network %s.", i)
 
     def enable_halt(self):
         self.enabled_halt = True
