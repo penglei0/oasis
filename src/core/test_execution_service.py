@@ -7,6 +7,7 @@ and drives TestRunner through the full lifecycle.  Both the CLI
 adapter (run_test.py) and any future API adapter can call this
 service without duplicating orchestration logic.
 """
+# pylint: disable=import-outside-toplevel
 import logging
 import os
 

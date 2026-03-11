@@ -54,8 +54,8 @@ def containernet_node_config(file_path, host_override: str = "") -> NodeConfig:
     )
     if merged_env:
         node_config_yaml["env"] = merged_env
-    nested_config_path = os.path.dirname(file_path) + os.sep
-    loaded_conf = IConfig.load_yaml_config(nested_config_path,
+    config_dir = os.path.dirname(file_path) + os.sep
+    loaded_conf = IConfig.load_yaml_config(config_dir,
                                            node_config_yaml, 'node_config')
     if isinstance(loaded_conf, NodeConfig):
         # Ensure the loaded configuration is a NodeConfig
@@ -65,7 +65,7 @@ def containernet_node_config(file_path, host_override: str = "") -> NodeConfig:
 
 
 def load_containernet_config(yaml_test_file,
-                             original_oasis_path,
+                             source_workspace,
                              settings=None,
                              host_override: str = ""):
     if settings is None:
@@ -75,7 +75,7 @@ def load_containernet_config(yaml_test_file,
         logging.error("No containernet node config is available.")
         sys.exit(1)
     # mount the workspace to collect the test results from hosts.
-    node_config.vols.append(f'{original_oasis_path}:{settings.root_path}')
+    node_config.vols.append(f'{source_workspace}:{settings.root_path}')
     return node_config
 
 

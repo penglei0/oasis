@@ -12,15 +12,12 @@ class TestTestExecutionServiceInit(unittest.TestCase):
 
     def test_default_settings(self):
         svc = TestExecutionService(
-            config_path="/cfg/",
-            yaml_test_file_path="/cfg/test.yaml",
-            oasis_workspace="/ws",
-            yaml_config_base_path="/base",
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
         )
+        self.assertEqual(svc.nested_yaml_test_file_path, "/cfg/test.yaml")
+        self.assertEqual(svc.original_oasis_path, "/ws")
         self.assertEqual(svc.config_path, "/cfg/")
-        self.assertEqual(svc.yaml_test_file_path, "/cfg/test.yaml")
-        self.assertEqual(svc.oasis_workspace, "/ws")
-        self.assertEqual(svc.yaml_config_base_path, "/base")
         self.assertEqual(svc.host_override, "")
         self.assertFalse(svc.halt)
         self.assertFalse(svc.is_using_testbed)
@@ -28,10 +25,8 @@ class TestTestExecutionServiceInit(unittest.TestCase):
     def test_custom_settings(self):
         settings = OasisSettings(root_path="/custom/")
         svc = TestExecutionService(
-            config_path="/cfg/",
-            yaml_test_file_path="/cfg/test.yaml",
-            oasis_workspace="/ws",
-            yaml_config_base_path="/base",
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
             settings=settings,
             host_override="myhost",
             halt=True,
@@ -52,10 +47,8 @@ class TestPrepare(unittest.TestCase):
         load_fn = MagicMock(return_value="node_cfg")
 
         svc = TestExecutionService(
-            config_path="/cfg/",
-            yaml_test_file_path="/cfg/test.yaml",
-            oasis_workspace="/ws",
-            yaml_config_base_path="/base",
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
             network_mgr_factory=factory,
         )
         result = svc.prepare(load_fn)
@@ -65,7 +58,7 @@ class TestPrepare(unittest.TestCase):
         self.assertEqual(svc.hosts_config, "node_cfg")
         factory.assert_called_once()
         load_fn.assert_called_once_with(
-            "/cfg/", "/cfg/test.yaml", "/ws", "/base",
+            "/cfg/test.yaml", "/ws",
             svc.settings, "",
         )
         mock_mgr.enable_halt.assert_not_called()
@@ -76,10 +69,8 @@ class TestPrepare(unittest.TestCase):
         load_fn = MagicMock(return_value="node_cfg")
 
         svc = TestExecutionService(
-            config_path="/cfg/",
-            yaml_test_file_path="/cfg/test.yaml",
-            oasis_workspace="/ws",
-            yaml_config_base_path="/base",
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
             halt=True,
             network_mgr_factory=factory,
         )
@@ -93,10 +84,8 @@ class TestPrepare(unittest.TestCase):
         load_fn = MagicMock(return_value="node_cfg")
 
         svc = TestExecutionService(
-            config_path="/cfg/",
-            yaml_test_file_path="/cfg/test.yaml",
-            oasis_workspace="/ws",
-            yaml_config_base_path="/base",
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
             network_mgr_factory=factory,
         )
         result = svc.prepare(load_fn)
@@ -110,10 +99,8 @@ class TestPrepare(unittest.TestCase):
         load_testbed_fn = MagicMock(return_value="testbed_cfg")
 
         svc = TestExecutionService(
-            config_path="/cfg/",
-            yaml_test_file_path="/cfg/test.yaml",
-            oasis_workspace="/ws",
-            yaml_config_base_path="/base",
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
             is_using_testbed=True,
             network_mgr_factory=factory,
         )
@@ -132,10 +119,8 @@ class TestRun(unittest.TestCase):
     def _make_service(self, tmp, load_tests_fn, runner_cls=None):
         settings = OasisSettings(root_path=tmp + '/')
         return TestExecutionService(
-            config_path="/cfg/",
-            yaml_test_file_path="/cfg/test.yaml",
-            oasis_workspace="/ws",
-            yaml_config_base_path="/base",
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
             settings=settings,
             load_tests_fn=load_tests_fn,
             runner_cls=runner_cls,
@@ -144,10 +129,8 @@ class TestRun(unittest.TestCase):
     def test_run_returns_false_when_no_tests(self):
         load_fn = MagicMock(return_value=[])
         svc = TestExecutionService(
-            config_path="/cfg/",
-            yaml_test_file_path="/cfg/test.yaml",
-            oasis_workspace="/ws",
-            yaml_config_base_path="/base",
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
             load_tests_fn=load_fn,
         )
         result = svc.run("all")
