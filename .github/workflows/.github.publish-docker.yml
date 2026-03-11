@@ -47,7 +47,7 @@ jobs:
             fi
           done
 
-          echo "Release tags must point to a commit on a protected branch."
+          echo "Release tags must point to a commit reachable from a release branch (main or dev)."
           exit 1
 
   publish-images:
