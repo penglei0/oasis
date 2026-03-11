@@ -112,6 +112,35 @@ class TestPrepare(unittest.TestCase):
             'testbed_nhop_shenzhen', "/cfg/")
         self.assertEqual(svc.hosts_config, "testbed_cfg")
 
+    def test_prepare_testbed_requires_loader(self):
+        factory = MagicMock(return_value=MagicMock())
+        load_hosts_fn = MagicMock()
+
+        svc = TestExecutionService(
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
+            is_using_testbed=True,
+            network_mgr_factory=factory,
+        )
+        result = svc.prepare(load_hosts_fn, None)
+
+        self.assertFalse(result)
+
+    def test_prepare_testbed_returns_false_when_config_none(self):
+        factory = MagicMock(return_value=MagicMock())
+        load_hosts_fn = MagicMock()
+        load_testbed_fn = MagicMock(return_value=None)
+
+        svc = TestExecutionService(
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
+            is_using_testbed=True,
+            network_mgr_factory=factory,
+        )
+        result = svc.prepare(load_hosts_fn, load_testbed_fn)
+
+        self.assertFalse(result)
+
 
 class TestRun(unittest.TestCase):
     """Test TestExecutionService.run()."""
@@ -132,6 +161,15 @@ class TestRun(unittest.TestCase):
             nested_yaml_test_file_path="/cfg/test.yaml",
             original_oasis_path="/ws",
             load_tests_fn=load_fn,
+        )
+        svc.network_manager = MagicMock()
+        result = svc.run("all")
+        self.assertFalse(result)
+
+    def test_run_returns_false_without_prepare(self):
+        svc = TestExecutionService(
+            nested_yaml_test_file_path="/cfg/test.yaml",
+            original_oasis_path="/ws",
         )
         result = svc.run("all")
         self.assertFalse(result)

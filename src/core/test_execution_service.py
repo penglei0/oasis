@@ -53,6 +53,35 @@ class TestExecutionService:
                  network_mgr_factory=None,
                  load_tests_fn=None,
                  runner_cls=None):
+        """Initialise the service with paths, settings and optional DI overrides.
+
+        Parameters
+        ----------
+        nested_yaml_test_file_path : str
+            Absolute path to the test YAML file **inside** the nested
+            containernet environment (e.g. ``/root/oasis/test/my-test.yaml``).
+            ``config_path`` is derived automatically as its parent directory.
+        original_oasis_path : str
+            The host-side Oasis workspace directory that is bind-mounted
+            into the containernet container (e.g. ``/home/user/oasis``).
+        settings : OasisSettings, optional
+            Runtime settings; defaults to ``OasisSettings()``.
+        host_override : str, optional
+            Docker image override for the host node (passed via ``--node``).
+        halt : bool, optional
+            When *True* the network manager pauses after test execution.
+        is_using_testbed : bool, optional
+            Select testbed mode instead of containernet mode.
+        network_mgr_factory : callable, optional
+            ``(NetworkType) -> NetworkManager``; production default is
+            ``core.network_factory.create_network_mgr``.
+        load_tests_fn : callable, optional
+            ``(yaml_path, selected_test) -> list[Test]``; production default
+            is ``core.config.load_all_tests``.
+        runner_cls : type, optional
+            Class used to run individual tests; production default is
+            ``core.runner.TestRunner``.
+        """
         self.nested_yaml_test_file_path = nested_yaml_test_file_path
         self.original_oasis_path = original_oasis_path
         self.settings = settings or OasisSettings()
@@ -64,7 +93,7 @@ class TestExecutionService:
         self._network_mgr_factory = network_mgr_factory
         self._load_tests_fn = load_tests_fn
         self._runner_cls = runner_cls
-        # read base path from `nested_yaml_test_file_path`
+        # Derived: directory containing the test YAML (used as config base).
         self.config_path = os.path.dirname(self.nested_yaml_test_file_path) + os.sep
 
     # ------------------------------------------------------------------
@@ -93,9 +122,16 @@ class TestExecutionService:
         else:
             logging.info("Running tests on testbed.")
             self.network_manager = factory(self._net_type_testbed())
-            if load_testbed_config_fn is not None:
-                self.hosts_config = load_testbed_config_fn(
-                    'testbed_nhop_shenzhen', self.config_path)
+            if load_testbed_config_fn is None:
+                logging.error(
+                    "load_testbed_config_fn must be provided when is_using_testbed is True.")
+                return False
+            self.hosts_config = load_testbed_config_fn(
+                'testbed_nhop_shenzhen', self.config_path)
+            if self.hosts_config is None:
+                logging.error(
+                    "Failed to load testbed hosts configuration; hosts_config is None.")
+                return False
 
         if self.network_manager is None:
             logging.error("Failed to load the appropriate network manager.")
@@ -112,7 +148,13 @@ class TestExecutionService:
         """Load tests from the YAML file and execute them.
 
         Returns ``True`` when every test passes, ``False`` otherwise.
+        ``prepare()`` **must** be called before ``run()``.
         """
+        if self.network_manager is None:
+            logging.error(
+                "run() called before prepare(). "
+                "Call prepare() first to initialise the network manager.")
+            return False
         load_fn = self._resolve_load_tests_fn()
         loaded_tests = load_fn(self.nested_yaml_test_file_path, selected_test)
         if not loaded_tests:
