@@ -4,9 +4,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:${PATH}"
 
-#RUN cp /etc/apt/sources.list /etc/apt/sources.list.bak && \
-#    sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list && \
-#    sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list
+# RUN cp /etc/apt/sources.list /etc/apt/sources.list.bak && \
+#     sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list && \
+#     sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list
 
 RUN set -eux; \
         apt-get update; \
@@ -43,6 +43,8 @@ RUN python3 -m venv "${VIRTUAL_ENV}" \
         && "${VIRTUAL_ENV}/bin/python3" -m pip install --upgrade pip \
         && "${VIRTUAL_ENV}/bin/python3" -m pip install --no-cache-dir -r /tmp/image-requirements.txt \
         && rm -f /tmp/image-requirements.txt
+
+# install with mirror: -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 ## Cleanup
 RUN set -eux; \
