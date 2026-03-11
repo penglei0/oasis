@@ -17,7 +17,7 @@ from var.settings import OasisSettings
 from core.config import (IConfig, NodeConfig)
 
 
-def containernet_node_config(config_base_path, file_path, host_override: str = "") -> NodeConfig:
+def containernet_node_config(file_path, host_override: str = "") -> NodeConfig:
     """Load node related configuration from the yaml file.
     """
     try:
@@ -54,7 +54,8 @@ def containernet_node_config(config_base_path, file_path, host_override: str = "
     )
     if merged_env:
         node_config_yaml["env"] = merged_env
-    loaded_conf = IConfig.load_yaml_config(config_base_path,
+    nested_config_path = os.path.dirname(file_path) + os.sep
+    loaded_conf = IConfig.load_yaml_config(nested_config_path,
                                            node_config_yaml, 'node_config')
     if isinstance(loaded_conf, NodeConfig):
         # Ensure the loaded configuration is a NodeConfig
@@ -63,25 +64,18 @@ def containernet_node_config(config_base_path, file_path, host_override: str = "
     return NodeConfig(name="", img="")
 
 
-def load_containernet_config(mapped_config_path,
-                             yaml_test_file,
-                             source_workspace,
-                             original_config_path,
+def load_containernet_config(yaml_test_file,
+                             original_oasis_path,
                              settings=None,
                              host_override: str = ""):
     if settings is None:
         settings = OasisSettings()
-    # print all input parameters
-    node_config = containernet_node_config(
-        mapped_config_path, yaml_test_file, host_override)
+    node_config = containernet_node_config(yaml_test_file, host_override)
     if node_config is None or node_config.name == "":
         logging.error("No containernet node config is available.")
         sys.exit(1)
-    # mount the workspace
-    node_config.vols.append(f'{source_workspace}:{settings.root_path}')
-    if mapped_config_path == f'{settings.root_path}user/':
-        node_config.vols.append(
-            f'{original_config_path}:{mapped_config_path}')
+    # mount the workspace to collect the test results from hosts.
+    node_config.vols.append(f'{original_oasis_path}:{settings.root_path}')
     return node_config
 
 
@@ -127,16 +121,17 @@ if __name__ == '__main__':
     else:
         setLogLevel('warning')
     configure_run_logging(debug_log == 'True', OasisSettings().root_path)
-    yaml_config_base_path = sys.argv[1]
-    oasis_workspace = sys.argv[2]
+    # @note: there are cases `original_yaml_config_path` is not the subfolder of `original_oasis_path`
+    original_yaml_config_path = sys.argv[1]
+    original_oasis_path = sys.argv[2]
     logging.info("Platform: %s", platform.platform())
     logging.info("Python version: %s", platform.python_version())
-    logging.info("Yaml config path: %s", yaml_config_base_path)
-    logging.info("Oasis workspace: %s", oasis_workspace)
+    logging.info("Yaml config path: %s", original_yaml_config_path)
+    logging.info("Oasis workspace: %s", original_oasis_path)
     oasis_settings = OasisSettings()
-    config_path = resolve_config_path(
-        yaml_config_base_path, oasis_workspace, oasis_settings)
-    running_in_nested = not is_base_path(os.getcwd(), oasis_workspace)
+    nested_config_path = resolve_config_path(
+        original_yaml_config_path, original_oasis_path, oasis_settings)
+    running_in_nested = not is_base_path(os.getcwd(), original_oasis_path)
     if not running_in_nested:
         logging.info("Nested containernet environment is required.")
         sys.exit(1)
@@ -149,16 +144,13 @@ if __name__ == '__main__':
         sys.exit(1)
     if not cur_selected_test:
         cur_selected_test = "all"
-    yaml_test_file_path = f'{config_path}/{cur_test_file}'
-    if not os.path.exists(yaml_test_file_path):
-        logging.info("%s does not exist.", yaml_test_file_path)
+    nested_yaml_test_file_path = f'{nested_config_path}/{cur_test_file}'
+    if not os.path.exists(nested_yaml_test_file_path):
+        logging.info("%s does not exist.", nested_yaml_test_file_path)
         sys.exit(1)
-
     service = TestExecutionService(
-        config_path=config_path,
-        yaml_test_file_path=yaml_test_file_path,
-        oasis_workspace=oasis_workspace,
-        yaml_config_base_path=yaml_config_base_path,
+        nested_yaml_test_file_path=nested_yaml_test_file_path,
+        original_oasis_path=original_oasis_path,
         settings=oasis_settings,
         host_override=selected_host,
         halt=(to_halt == 'True'),

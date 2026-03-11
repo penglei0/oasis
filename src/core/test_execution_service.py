@@ -16,19 +16,19 @@ except ImportError:
     from src.var.settings import OasisSettings
 
 
-def resolve_config_path(yaml_config_base_path, oasis_workspace, settings):
+def resolve_config_path(original_yaml_config_path, original_oasis_path, settings):
     """Determine the mapped config path for use inside nested containernet."""
     try:
         from tools.util import is_same_path
     except ImportError:
         from src.tools.util import is_same_path
 
-    if is_same_path(yaml_config_base_path, f"{oasis_workspace}/test/"):
+    if is_same_path(original_yaml_config_path, f"{original_oasis_path}/test/"):
         logging.info("No config path mapping is needed.")
         return f'{settings.root_path}test/'
     logging.info(
         "Oasis YAML config files `%s` mapped to `%s`.",
-        yaml_config_base_path, f'{settings.root_path}user/')
+        original_yaml_config_path, f'{settings.root_path}user/')
     return f'{settings.root_path}user/'
 
 
@@ -43,10 +43,8 @@ class TestExecutionService:
     """
 
     def __init__(self,
-                 config_path,
-                 yaml_test_file_path,
-                 oasis_workspace,
-                 yaml_config_base_path,
+                 nested_yaml_test_file_path,
+                 original_oasis_path,
                  settings=None,
                  host_override="",
                  halt=False,
@@ -54,10 +52,8 @@ class TestExecutionService:
                  network_mgr_factory=None,
                  load_tests_fn=None,
                  runner_cls=None):
-        self.config_path = config_path
-        self.yaml_test_file_path = yaml_test_file_path
-        self.oasis_workspace = oasis_workspace
-        self.yaml_config_base_path = yaml_config_base_path
+        self.nested_yaml_test_file_path = nested_yaml_test_file_path
+        self.original_oasis_path = original_oasis_path
         self.settings = settings or OasisSettings()
         self.host_override = host_override
         self.halt = halt
@@ -67,6 +63,8 @@ class TestExecutionService:
         self._network_mgr_factory = network_mgr_factory
         self._load_tests_fn = load_tests_fn
         self._runner_cls = runner_cls
+        # read base path from `nested_yaml_test_file_path`
+        self.config_path = os.path.dirname(self.nested_yaml_test_file_path) + os.sep
 
     # ------------------------------------------------------------------
     # Public API
@@ -86,10 +84,8 @@ class TestExecutionService:
             logging.info("Running tests on containernet.")
             self.network_manager = factory(self._net_type_containernet())
             self.hosts_config = load_hosts_config_fn(
-                self.config_path,
-                self.yaml_test_file_path,
-                self.oasis_workspace,
-                self.yaml_config_base_path,
+                self.nested_yaml_test_file_path,
+                self.original_oasis_path,
                 self.settings,
                 self.host_override,
             )
@@ -117,7 +113,7 @@ class TestExecutionService:
         Returns ``True`` when every test passes, ``False`` otherwise.
         """
         load_fn = self._resolve_load_tests_fn()
-        loaded_tests = load_fn(self.yaml_test_file_path, selected_test)
+        loaded_tests = load_fn(self.nested_yaml_test_file_path, selected_test)
         if not loaded_tests:
             logging.error("No test case was found.")
             return False
