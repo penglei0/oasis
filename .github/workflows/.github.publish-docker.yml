@@ -1,0 +1,105 @@
+name: Publish Docker Images
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  validate-release-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Validate release tag
+        id: validate
+        run: |
+          if ! [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unsupported release tag: ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+
+          tag_commit=$(git rev-list -n 1 "${GITHUB_REF_NAME}")
+          release_branches=""
+
+          for branch in main dev; do
+            if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+              git fetch --no-tags origin "${branch}:refs/remotes/origin/${branch}"
+              release_branches="${release_branches} ${branch}"
+            fi
+          done
+
+          if [[ -z "${release_branches}" ]]; then
+            echo "No release branches were found to validate ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+
+          for branch in ${release_branches}; do
+            if git merge-base --is-ancestor "${tag_commit}" "origin/${branch}"; then
+              echo "version=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          done
+
+          echo "Release tags must point to a commit reachable from a release branch (main or dev)."
+          exit 1
+
+  publish-images:
+    needs: validate-release-tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image_name: containernet
+            dockerfile: Dockerfile.containernet
+            ubuntu_version: "22.04"
+          - image_name: containernet
+            dockerfile: Dockerfile.containernet
+            ubuntu_version: "24.04"
+          - image_name: ubuntu-generic
+            dockerfile: Dockerfile.ubuntu-generic
+            ubuntu_version: "22.04"
+          - image_name: ubuntu-generic
+            dockerfile: Dockerfile.ubuntu-generic
+            ubuntu_version: "24.04"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+          submodules: recursive
+      - name: Sync Git LFS
+        run: git lfs install && git lfs pull
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          build-args: |
+            UBUNTU_VERSION=${{ matrix.ubuntu_version }}
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.image_name }}:${{ matrix.ubuntu_version }}
+            ghcr.io/${{ github.repository }}/${{ matrix.image_name }}:${{ needs.validate-release-tag.outputs.version }}-${{ matrix.ubuntu_version }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.validate-release-tag.outputs.version }}
