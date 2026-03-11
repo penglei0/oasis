@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 import yaml
 from src.core.config import load_all_tests
@@ -7,6 +8,16 @@ from src.core.topology import TopologyType
 
 
 class TestLoadAllTests(unittest.TestCase):
+
+    @staticmethod
+    def find_repo_root() -> Path:
+        current = Path(__file__).resolve()
+        for parent in current.parents:
+            if (parent / '.git').exists():
+                return parent
+        raise FileNotFoundError(
+            f"Could not locate repository root starting from {current} "
+            "(no .git directory found in parent directories).")
 
     @patch('builtins.open')
     @patch('yaml.safe_load')
@@ -122,6 +133,24 @@ class TestLoadAllTests(unittest.TestCase):
 
         # Verify the result is empty
         self.assertEqual(len(result), 0)
+
+    def test_bats_iperf_config_validation(self):
+        repo_root = self.find_repo_root()
+        tests = load_all_tests(str(repo_root / 'test' / 'protocol-ci-test.yaml'))
+
+        test3 = next((test for test in tests if test.name == 'test3'), None)
+        self.assertIsNotNone(
+            test3,
+            f"test3 not found in loaded tests. Available tests: {[test.name for test in tests]}")
+        test_tools = test3.yaml()['test_tools']
+
+        self.assertEqual(set(test_tools.keys()), {'bats_iperf'})
+        self.assertEqual(test_tools['bats_iperf'], {
+            'interval': 1,
+            'interval_num': 20,
+            'client_host': 0,
+            'server_host': 1,
+        })
 
 
 class TestTestClass(unittest.TestCase):
