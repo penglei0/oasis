@@ -1,9 +1,16 @@
 import unittest
+import os
+import sys
+import subprocess
 from src.tools.util import is_same_path
 from src.tools.util import is_base_path
 from src.tools.util import str_to_mbps
 from src.tools.util import parse_test_file_name
+from src.tools.util import normalize_env_map
+from src.tools.util import merge_env_values
 from src.tools.util import resolve_node_config_reference
+from src.tools.util import resolve_node_image
+from src.tools.util import resolve_host_image_reference
 
 
 class TestIsSamePath(unittest.TestCase):
@@ -110,6 +117,56 @@ class TestStrToMbps(unittest.TestCase):
                 'config_name': 'ubuntu-24.04',
                 'config_file': 'predefined.node_config.yaml'
             })
+
+    def test_normalize_env_map_from_list(self):
+        envs = [{"A": "1"}, {"B": 2}]
+        self.assertEqual(normalize_env_map(envs), {"A": "1", "B": "2"})
+
+    def test_merge_env_values_node_takes_precedence(self):
+        host_env = [{"A": "1"}, {"B": "2"}]
+        node_env = {"B": "22", "C": "3"}
+        self.assertEqual(merge_env_values(host_env, node_env),
+                         {"A": "1", "B": "22", "C": "3"})
+
+    def test_resolve_node_image_with_override(self):
+        self.assertEqual(resolve_node_image("ubuntu-generic:22.04",
+                                            "ubuntu-generic:24.04"),
+                         "ubuntu-generic:24.04")
+
+    def test_resolve_node_image_without_override(self):
+        self.assertEqual(resolve_node_image("ubuntu-generic:22.04", " "),
+                         "ubuntu-generic:22.04")
+
+    def test_resolve_host_image_reference_from_yaml(self):
+        self.assertEqual(
+            resolve_host_image_reference(
+                {"name": "ubuntu-24.04", "presets": "predefined.node_config.yaml"},
+                "",
+            ),
+            {"config_name": "ubuntu-24.04", "config_file": "predefined.node_config.yaml"},
+        )
+
+    def test_resolve_host_image_reference_cli_override(self):
+        self.assertEqual(
+            resolve_host_image_reference(
+                {"name": "ubuntu-24.04", "presets": "custom.yaml"},
+                "default",
+            ),
+            {"config_name": "default", "config_file": "predefined.node_config.yaml"},
+        )
+
+    def test_util_importable_from_tools_directory(self):
+        tools_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        command = [sys.executable, "-c", "import util; print(util.normalize_env_map({'A': 1}))"]
+        result = subprocess.run(
+            command,
+            cwd=tools_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("{'A': '1'}", result.stdout)
 
 
 if __name__ == '__main__':

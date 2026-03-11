@@ -10,8 +10,9 @@ from interfaces.network_mgr import NetworkType
 from tools.util import (
     is_same_path,
     is_base_path,
+    merge_env_values,
     parse_test_file_name,
-    resolve_node_config_reference,
+    resolve_host_image_reference,
 )
 from var.global_var import g_root_path
 from core.config import (IConfig, NodeConfig, load_all_tests)
@@ -19,7 +20,7 @@ from core.network_factory import (create_network_mgr)
 from core.runner import TestRunner
 
 
-def containernet_node_config(config_base_path, file_path) -> NodeConfig:
+def containernet_node_config(config_base_path, file_path, host_override: str = "") -> NodeConfig:
     """Load node related configuration from the yaml file.
     """
     try:
@@ -33,16 +34,29 @@ def containernet_node_config(config_base_path, file_path) -> NodeConfig:
         logging.error("Error parsing YAML file: %s", exc)
         return NodeConfig(name="", img="")
 
-    if not yaml_content or 'containernet' not in yaml_content:
-        logging.error("No containernet node config found in the YAML file.")
+    if not yaml_content:
+        logging.error("YAML file is empty or could not be parsed.")
         return NodeConfig(name="", img="")
-    override_name = os.getenv("OASIS_NODE_CONFIG_NAME", "").strip()
-    node_config_reference = yaml_content['containernet']["node_config"]
-    node_config_yaml = resolve_node_config_reference(
-        node_config_reference, override_name)
-    if (override_name and isinstance(node_config_reference, dict)
-            and node_config_reference.get("config_name") != node_config_yaml.get("config_name")):
-        logging.info("Override node_config with OASIS_NODE_CONFIG_NAME=%s", override_name)
+
+    host_yaml = yaml_content.get("host")
+    if not isinstance(host_yaml, dict):
+        logging.error("No valid host configuration found. Expected host section in YAML.")
+        return NodeConfig(name="", img="")
+    if "image" not in host_yaml:
+        logging.error(
+            "No valid host configuration found. "
+            "Expected host.image in YAML.")
+        return NodeConfig(name="", img="")
+    host_image_yaml = host_yaml.get("image", {})
+    node_config_yaml = resolve_host_image_reference(host_image_yaml, host_override)
+    node_config_yaml["init_script"] = host_yaml.get("init_script", "")
+
+    merged_env = merge_env_values(
+        host_yaml.get("env", {}),
+        node_config_yaml.get("env", {}),
+    )
+    if merged_env:
+        node_config_yaml["env"] = merged_env
     loaded_conf = IConfig.load_yaml_config(config_base_path,
                                            node_config_yaml, 'node_config')
     if isinstance(loaded_conf, NodeConfig):
@@ -52,9 +66,14 @@ def containernet_node_config(config_base_path, file_path) -> NodeConfig:
     return NodeConfig(name="", img="")
 
 
-def load_containernet_config(mapped_config_path, yaml_test_file, source_workspace, original_config_path):
+def load_containernet_config(mapped_config_path,
+                             yaml_test_file,
+                             source_workspace,
+                             original_config_path,
+                             host_override: str = ""):
     # print all input parameters
-    node_config = containernet_node_config(mapped_config_path, yaml_test_file)
+    node_config = containernet_node_config(
+        mapped_config_path, yaml_test_file, host_override)
     if node_config is None or node_config.name == "":
         logging.error("Error: no containernet node config.")
         sys.exit(1)
@@ -98,6 +117,9 @@ if __name__ == '__main__':
         debug_log = sys.argv[4]
     if len(sys.argv) >= 6:
         to_halt = sys.argv[5]
+    selected_host = ""
+    if len(sys.argv) >= 7:
+        selected_host = sys.argv[6]
     if debug_log == 'True':
         setLogLevel('debug')
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',
@@ -162,7 +184,7 @@ if __name__ == '__main__':
         logging.info("##### running tests on containernet.")
         network_manager = create_network_mgr(NetworkType.containernet)
         cur_hosts_config = load_containernet_config(
-            config_path, yaml_test_file_path, oasis_workspace, yaml_config_base_path)
+            config_path, yaml_test_file_path, oasis_workspace, yaml_config_base_path, selected_host)
     else:
         logging.info("##### running tests on testbed.")
         network_manager = create_network_mgr(NetworkType.testbed)
