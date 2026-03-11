@@ -88,15 +88,15 @@ jobs:
       - name: SSHPing tests
         working-directory: ${{github.workspace}}/
         run: |
-          ./src/tools/run_test.sh protocol-sshping-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --node=${{ matrix.host.tag }}
+          ./src/tools/run_test.sh protocol-sshping-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --host=${{ matrix.host.name }}
       - name: SCP test
         working-directory: ${{github.workspace}}/
         run: |
-          ./src/tools/run_test.sh protocol-scp-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --node=${{ matrix.host.tag }}
+          ./src/tools/run_test.sh protocol-scp-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --host=${{ matrix.host.name }}
       - name: Throughput tests
         working-directory: ${{github.workspace}}/
         run: |
-          ./src/tools/run_test.sh protocol-ci-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --node=${{ matrix.host.tag }}
+          ./src/tools/run_test.sh protocol-ci-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --host=${{ matrix.host.name }}
       - name: Upload test logs
         uses: actions/upload-artifact@v4
         continue-on-error: true

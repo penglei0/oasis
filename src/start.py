@@ -1,5 +1,6 @@
 import os
 import sys
+import shlex
 import argparse
 import logging
 
@@ -50,9 +51,9 @@ def parse_args():
                         dest='halt',
                         type=str,
                         default="False")
-    parser.add_argument('--node',
-                        help='override node image for hosts in containernet',
-                        dest='node_image',
+    parser.add_argument('--host', '--node',
+                        help='override host image preset for hosts in containernet',
+                        dest='host_image',
                         type=str,
                         default="")
     return parser
@@ -87,7 +88,7 @@ if __name__ == '__main__':
     yaml_base_path = ns.yaml_base_path
     debug_log = ns.debug_log
     halt = ns.halt
-    node_image = ns.node_image
+    host_image = ns.host_image
     if debug_log == 'True':
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',
                             datefmt='%Y-%m-%d %H:%M:%S')
@@ -141,7 +142,15 @@ if __name__ == '__main__':
         logging.info("Error: failed to build the nested containernet.")
         sys.exit(1)
     nested_env.start()
-    nested_env.execute(
-        f"python3 {g_root_path}src/run_test.py {yaml_base_path} {oasis_workspace} "
-        f"{ns.tests_config_file} {debug_log} {halt} {node_image}")
+    run_test_args = [
+        "python3",
+        f"{g_root_path}src/run_test.py",
+        yaml_base_path,
+        oasis_workspace,
+        ns.tests_config_file,
+        debug_log,
+        halt,
+        host_image,
+    ]
+    nested_env.execute(" ".join(shlex.quote(arg) for arg in run_test_args))
     nested_env.stop()

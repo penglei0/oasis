@@ -1,10 +1,8 @@
 # test case yaml file is only visible to the `run_test.py`
-containernet:
-  node_config:
-    config_name: default
-    config_file: predefined.node_config.yaml
-
-host_config:
+host:
+  image:
+    name: default
+    presets: predefined.node_config.yaml
   env:
     - ENV_BATS_XXX_INTERVAL: "100"
 

@@ -7,6 +7,7 @@ from src.tools.util import normalize_env_map
 from src.tools.util import merge_env_values
 from src.tools.util import resolve_node_config_reference
 from src.tools.util import resolve_node_image
+from src.tools.util import resolve_host_image_reference
 
 
 class TestIsSamePath(unittest.TestCase):
@@ -132,6 +133,24 @@ class TestStrToMbps(unittest.TestCase):
     def test_resolve_node_image_without_override(self):
         self.assertEqual(resolve_node_image("ubuntu-generic:22.04", " "),
                          "ubuntu-generic:22.04")
+
+    def test_resolve_host_image_reference_from_yaml(self):
+        self.assertEqual(
+            resolve_host_image_reference(
+                {"name": "ubuntu-24.04", "presets": "predefined.node_config.yaml"},
+                "",
+            ),
+            {"config_name": "ubuntu-24.04", "config_file": "predefined.node_config.yaml"},
+        )
+
+    def test_resolve_host_image_reference_cli_override(self):
+        self.assertEqual(
+            resolve_host_image_reference(
+                {"name": "ubuntu-24.04", "presets": "custom.yaml"},
+                "default",
+            ),
+            {"config_name": "default", "config_file": "predefined.node_config.yaml"},
+        )
 
 
 if __name__ == '__main__':

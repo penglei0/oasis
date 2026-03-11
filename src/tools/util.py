@@ -1,5 +1,9 @@
 import os
 from typing import Any, Dict, Mapping
+try:
+    from core.config import _normalize_env
+except ImportError:  # pragma: no cover
+    from src.core.config import _normalize_env
 
 
 def is_same_path(file_path1, file_path2):
@@ -71,18 +75,7 @@ def resolve_node_config_reference(node_config_yaml, override_name):
 
 def normalize_env_map(env_value: Any) -> Dict[str, str]:
     """Normalize env entries from mapping/list formats into a flat dict."""
-    if env_value is None:
-        return {}
-    if isinstance(env_value, Mapping):
-        return {str(k): str(v) for k, v in env_value.items()}
-    if isinstance(env_value, list):
-        normalized_env: Dict[str, str] = {}
-        for env_item in env_value:
-            if isinstance(env_item, Mapping):
-                for key, value in env_item.items():
-                    normalized_env[str(key)] = str(value)
-        return normalized_env
-    return {}
+    return _normalize_env(env_value)
 
 
 def merge_env_values(host_env: Any, node_env: Any) -> Dict[str, str]:
@@ -97,3 +90,22 @@ def resolve_node_image(default_image: str, override_image: str) -> str:
     if override_image and override_image.strip():
         return override_image.strip()
     return default_image
+
+
+def resolve_host_image_reference(host_image_yaml: Any, host_override: str) -> Dict[str, str]:
+    """Resolve host image config as a node config reference."""
+    resolved = {
+        "config_name": "default",
+        "config_file": "predefined.node_config.yaml",
+    }
+    if isinstance(host_image_yaml, Mapping):
+        image_name = host_image_yaml.get("name")
+        image_presets = host_image_yaml.get("presets")
+        if image_name:
+            resolved["config_name"] = str(image_name)
+        if image_presets:
+            resolved["config_file"] = str(image_presets)
+    if host_override and host_override.strip():
+        resolved["config_name"] = host_override.strip()
+        resolved["config_file"] = "predefined.node_config.yaml"
+    return resolved
