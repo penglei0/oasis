@@ -69,10 +69,20 @@ jobs:
       - name: Pull Docker Images
         working-directory: ${{github.workspace}}/
         run: |
-          docker pull ghcr.io/${{ github.repository }}/containernet:${{ matrix.containernet.ubuntu_version }}
-          docker tag ghcr.io/${{ github.repository }}/containernet:${{ matrix.containernet.ubuntu_version }} ${{ matrix.containernet.tag }}
-          docker pull ghcr.io/${{ github.repository }}/ubuntu-generic:${{ matrix.host.ubuntu_version }}
-          docker tag ghcr.io/${{ github.repository }}/ubuntu-generic:${{ matrix.host.ubuntu_version }} ${{ matrix.host.tag }}
+          set -e
+          pull_and_tag() {
+            remote_image="$1"
+            local_image="$2"
+            if ! docker pull "${remote_image}"; then
+              echo "Required image ${remote_image} was not found in GHCR."
+              echo "Workflow .github/workflows/.github.publish-docker.yml must run successfully for a release tag like v1.0.0 before Oasis CI can use ${local_image}."
+              exit 1
+            fi
+            docker tag "${remote_image}" "${local_image}"
+          }
+
+          pull_and_tag ghcr.io/${{ github.repository }}/containernet:${{ matrix.containernet.ubuntu_version }} ${{ matrix.containernet.tag }}
+          pull_and_tag ghcr.io/${{ github.repository }}/ubuntu-generic:${{ matrix.host.ubuntu_version }} ${{ matrix.host.tag }}
           docker images
       - name: Loading secrets
         run: |
