@@ -2,7 +2,6 @@ import os
 import sys
 import logging
 import platform
-import copy
 import yaml
 
 from mininet.log import setLogLevel
@@ -39,29 +38,21 @@ def containernet_node_config(config_base_path, file_path, host_override: str = "
         logging.error("YAML file is empty or could not be parsed.")
         return NodeConfig(name="", img="")
 
-    host_yaml_raw = yaml_content.get("host", {})
-    host_yaml = host_yaml_raw if isinstance(host_yaml_raw, dict) else {}
-    legacy_containernet_yaml = yaml_content.get("containernet", {})
-    legacy_node_config_yaml = legacy_containernet_yaml.get("node_config", {})
-    legacy_host_config_yaml = yaml_content.get("host_config", {})
-
-    if "image" in host_yaml:
-        host_image_yaml = host_yaml.get("image", {})
-        node_config_yaml = resolve_host_image_reference(host_image_yaml, host_override)
-        node_config_yaml["init_script"] = host_yaml.get("init_script", "")
-    elif legacy_node_config_yaml:
-        node_config_yaml = copy.deepcopy(legacy_node_config_yaml)
-        if host_override and host_override.strip():
-            node_config_yaml["config_name"] = host_override.strip()
-            node_config_yaml["config_file"] = "predefined.node_config.yaml"
-    else:
+    host_yaml = yaml_content.get("host")
+    if not isinstance(host_yaml, dict):
+        logging.error("No valid host configuration found. Expected host section in YAML.")
+        return NodeConfig(name="", img="")
+    if "image" not in host_yaml:
         logging.error(
             "No valid host configuration found. "
-            "Expected either host.image or containernet.node_config in YAML.")
+            "Expected host.image in YAML.")
         return NodeConfig(name="", img="")
+    host_image_yaml = host_yaml.get("image", {})
+    node_config_yaml = resolve_host_image_reference(host_image_yaml, host_override)
+    node_config_yaml["init_script"] = host_yaml.get("init_script", "")
 
     merged_env = merge_env_values(
-        host_yaml.get("env", legacy_host_config_yaml.get("env", {})),
+        host_yaml.get("env", {}),
         node_config_yaml.get("env", {}),
     )
     if merged_env:

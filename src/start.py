@@ -51,7 +51,7 @@ def parse_args():
                         dest='halt',
                         type=str,
                         default="False")
-    parser.add_argument('--host', '--node',
+    parser.add_argument('--host',
                         help='override host image preset for hosts in containernet',
                         dest='host_image',
                         type=str,

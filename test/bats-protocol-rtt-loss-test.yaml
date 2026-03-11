@@ -1,8 +1,8 @@
 # test case yaml file is only visible to the `run_test.py`
-containernet:
-  node_config:
-    config_name: default
-    config_file: predefined.node_config.yaml
+host:
+  image:
+    name: default
+    presets: predefined.node_config.yaml
 
 tests:
   test1000:
