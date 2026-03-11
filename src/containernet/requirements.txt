@@ -1,2 +1,0 @@
-# dependencies for containernet
--r ../../docker/requirements/containernet.txt
