@@ -7,15 +7,15 @@ from src.core.config import Test, TopologyConfig
 from src.core.topology import TopologyType
 
 
-def find_repo_root() -> Path:
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / '.git').exists():
-            return parent
-    raise FileNotFoundError("Could not locate repository root.")
-
-
 class TestLoadAllTests(unittest.TestCase):
+
+    @staticmethod
+    def find_repo_root() -> Path:
+        current = Path(__file__).resolve()
+        for parent in current.parents:
+            if (parent / '.git').exists():
+                return parent
+        raise FileNotFoundError("Could not locate repository root.")
 
     @patch('builtins.open')
     @patch('yaml.safe_load')
@@ -133,7 +133,7 @@ class TestLoadAllTests(unittest.TestCase):
         self.assertEqual(len(result), 0)
 
     def test_bats_iperf_config_validation(self):
-        repo_root = find_repo_root()
+        repo_root = self.find_repo_root()
         tests = load_all_tests(str(repo_root / 'test' / 'protocol-ci-test.yaml'))
 
         test3 = next((test for test in tests if test.name == 'test3'), None)
