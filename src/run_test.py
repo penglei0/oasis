@@ -36,7 +36,7 @@ def containernet_node_config(config_base_path, file_path, host_override: str = "
         return NodeConfig(name="", img="")
 
     if not yaml_content:
-        logging.error("No containernet node config found in the YAML file.")
+        logging.error("YAML file is empty or could not be parsed.")
         return NodeConfig(name="", img="")
 
     host_yaml_raw = yaml_content.get("host", {})
@@ -55,7 +55,9 @@ def containernet_node_config(config_base_path, file_path, host_override: str = "
             node_config_yaml["config_name"] = host_override.strip()
             node_config_yaml["config_file"] = "predefined.node_config.yaml"
     else:
-        logging.error("No host config found in the YAML file.")
+        logging.error(
+            "No valid host configuration found. "
+            "Expected either host.image or containernet.node_config in YAML.")
         return NodeConfig(name="", img="")
 
     merged_env = merge_env_values(
