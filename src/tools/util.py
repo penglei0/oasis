@@ -1,9 +1,23 @@
 import os
+import sys
+import importlib
 from typing import Any, Dict, Mapping
-try:
-    from core.config import _normalize_env
-except ImportError:  # pragma: no cover
-    from src.core.config import _normalize_env
+
+
+def _load_normalize_env():
+    for module_name in ("core.config", "src.core.config"):
+        try:
+            return getattr(importlib.import_module(module_name), "_normalize_env")
+        except ImportError:  # pragma: no cover
+            continue
+
+    src_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if src_root not in sys.path:
+        sys.path.insert(0, src_root)
+    return getattr(importlib.import_module("core.config"), "_normalize_env")
+
+
+_normalize_env = _load_normalize_env()
 
 DEFAULT_NODE_CONFIG_PRESETS = "predefined.node_config.yaml"
 

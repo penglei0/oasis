@@ -1,4 +1,7 @@
 import unittest
+import os
+import sys
+import subprocess
 from src.tools.util import is_same_path
 from src.tools.util import is_base_path
 from src.tools.util import str_to_mbps
@@ -151,6 +154,19 @@ class TestStrToMbps(unittest.TestCase):
             ),
             {"config_name": "default", "config_file": "predefined.node_config.yaml"},
         )
+
+    def test_util_importable_from_tools_directory(self):
+        tools_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        command = [sys.executable, "-c", "import util; print(util.normalize_env_map({'A': 1}))"]
+        result = subprocess.run(
+            command,
+            cwd=tools_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("{'A': '1'}", result.stdout)
 
 
 if __name__ == '__main__':
