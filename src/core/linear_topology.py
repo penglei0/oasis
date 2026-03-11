@@ -49,7 +49,7 @@ class LinearTopology(ITopology):
                 the number of hops.
         """
         hops = num_of_nodes - 1
-        logging.info("Generate a %d-hops linear chain topology. %d",
+        logging.info("Generate one %d-hops linear chain topology. hosts: %d",
                      hops, num_of_nodes)
         # Generate the adjacency matrix for the linear chain topology
         adj_matrix = [[0 for _ in range(num_of_nodes)]
@@ -143,7 +143,7 @@ class LinearTopology(ITopology):
                         # can be stepped only when the init_value is a single value
                         step_len = param.get("step_len", 0)
                         step_num = param.get("step_num", 0)
-                    logging.info(
+                    logging.debug(
                         "############## value_matrix: %s, step_len %s, step_num %s", value_mat, step_len, step_num)
                     if step_len > 0 and step_num > 0:
                         self.compound_top = True

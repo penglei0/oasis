@@ -14,6 +14,7 @@ from tools.util import (
     parse_test_file_name,
     resolve_host_image_reference,
 )
+from tools.log_setup import configure_run_logging
 from var.settings import OasisSettings
 from core.config import (IConfig, NodeConfig, load_all_tests)
 from core.network_factory import (create_network_mgr)
@@ -62,7 +63,7 @@ def containernet_node_config(config_base_path, file_path, host_override: str = "
     if isinstance(loaded_conf, NodeConfig):
         # Ensure the loaded configuration is a NodeConfig
         return loaded_conf
-    logging.error("Error: loaded configuration is not a NodeConfig.")
+    logging.error("Loaded configuration is not a NodeConfig.")
     return NodeConfig(name="", img="")
 
 
@@ -78,7 +79,7 @@ def load_containernet_config(mapped_config_path,
     node_config = containernet_node_config(
         mapped_config_path, yaml_test_file, host_override)
     if node_config is None or node_config.name == "":
-        logging.error("Error: no containernet node config.")
+        logging.error("No containernet node config is available.")
         sys.exit(1)
     # mount the workspace
     node_config.vols.append(f'{source_workspace}:{settings.root_path}')
@@ -92,8 +93,7 @@ def load_testbed_config(name, yaml_base_path_input):
     absolute_path_of_testbed_config_file = os.path.join(
         yaml_base_path_input + "/", 'testbed/predefined.testbed.yaml')
     if not os.path.exists(f'{absolute_path_of_testbed_config_file}'):
-        logging.info(f"Error: %s does not exist.", {
-                     absolute_path_of_testbed_config_file})
+        logging.info("%s does not exist.", absolute_path_of_testbed_config_file)
         return None
     all_testbeds = None
     with open(absolute_path_of_testbed_config_file, 'r', encoding='utf-8') as stream:
@@ -125,14 +125,9 @@ if __name__ == '__main__':
         selected_host = sys.argv[6]
     if debug_log == 'True':
         setLogLevel('debug')
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
-        logging.info("Debug mode is enabled.")
     else:
         setLogLevel('warning')
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
-        logging.info("Debug mode is disabled.")
+    configure_run_logging(debug_log == 'True', OasisSettings().root_path)
     yaml_config_base_path = sys.argv[1]
     oasis_workspace = sys.argv[2]
     logging.info("Platform: %s", platform.platform())
@@ -153,10 +148,8 @@ if __name__ == '__main__':
         # this is for using oasis in outside the oasis workspace
         config_path = f'{oasis_settings.root_path}user/'
         logging.info(
-           f"Oasis yaml config files `%s` mapped to `%s`.", yaml_config_base_path, config_path)
+            "Oasis YAML config files `%s` mapped to `%s`.", yaml_config_base_path, config_path)
     oasis_mapped_prefix = f'{oasis_settings.root_path}'
-    logging.info(
-        f"run_test.py: Base path of the oasis project: %s", oasis_workspace)
     running_in_nested = not is_base_path(os.getcwd(), oasis_workspace)
     if not running_in_nested:
         logging.info("Nested containernet environment is required.")
@@ -166,13 +159,13 @@ if __name__ == '__main__':
     cur_selected_test = "all"
     cur_test_file, cur_selected_test = parse_test_file_name(cur_test_file)
     if not cur_test_file:
-        logging.info("Error: invalid test file name.")
+        logging.info("Invalid test file name.")
         sys.exit(1)
     if not cur_selected_test:
         cur_selected_test = "all"
     yaml_test_file_path = f'{config_path}/{cur_test_file}'
     if not os.path.exists(yaml_test_file_path):
-        logging.info(f"Error: %s does not exist.", yaml_test_file_path)
+        logging.info("%s does not exist.", yaml_test_file_path)
         sys.exit(1)
 
     is_using_testbed = False
@@ -185,18 +178,18 @@ if __name__ == '__main__':
     """
     network_manager = None
     if not is_using_testbed:
-        logging.info("##### running tests on containernet.")
+        logging.info("Running tests on containernet.")
         network_manager = create_network_mgr(NetworkType.containernet)
         cur_hosts_config = load_containernet_config(
             config_path, yaml_test_file_path, oasis_workspace, yaml_config_base_path, oasis_settings, selected_host)
     else:
-        logging.info("##### running tests on testbed.")
+        logging.info("Running tests on testbed.")
         network_manager = create_network_mgr(NetworkType.testbed)
         cur_hosts_config = load_testbed_config(
             'testbed_nhop_shenzhen', config_path)
 
     if network_manager is None:
-        logging.error("Error: failed to load proper network manager")
+        logging.error("Failed to load the appropriate network manager.")
         sys.exit(1)
     if to_halt == 'True':
         logging.info(
@@ -205,13 +198,13 @@ if __name__ == '__main__':
     # 1. execute all the tests on all constructed networks
     loaded_tests = load_all_tests(yaml_test_file_path, cur_selected_test)
     if loaded_tests is None or len(loaded_tests) == 0:
-        logging.error("Error: no test case found.")
+        logging.error("No test case was found.")
         sys.exit(1)
     for test in loaded_tests:
         loaded_topologies = test.load_topology(config_path)
         if not loaded_topologies:
             logging.error(
-                "Error: failed to load a topology for test %s", test.name)
+                "Failed to load a topology for test %s.", test.name)
             continue
         # 1.1 The topology in one case can be composed of multiple topologies:
         #      Traverse all the topologies in the test case.

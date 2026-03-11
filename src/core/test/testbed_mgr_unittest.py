@@ -41,8 +41,13 @@ class TestLoadAllHosts(unittest.TestCase):
     """Unit tests for load_all_hosts helper."""
 
     def test_empty_list_returns_none(self):
-        result = load_all_hosts([])
+        with self.assertLogs(level='INFO') as log_context:
+            result = load_all_hosts([])
         self.assertIsNone(result)
+        self.assertTrue(
+            any("No hosts were loaded for the testbed." in entry
+                for entry in log_context.output)
+        )
 
     def test_valid_host_configs(self):
         hosts_yaml = [

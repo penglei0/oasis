@@ -47,7 +47,7 @@ class ContainerizedNetwork (INetwork):
         self.node_ip_range = node_config.ip_range or ""
         self.node_init_script = node_config.init_script or ""
         self.config_base_path = node_config.config_base_path or ""
-        logging.info('ContainerizedNetwork uses node_img %s', self.node_img)
+        logging.debug('ContainerizedNetwork uses node_img %s', self.node_img)
         logging.info('ContainerizedNetwork uses envs %s', node_config.env)
         self.node_envs = node_config.env or {}
         # `node_ip_start` init from node_ip_range
@@ -58,7 +58,7 @@ class ContainerizedNetwork (INetwork):
         self.net_top_description = net_topology.description()
         self._init_matrix(net_topology)
         self._check_node_vols()
-        logging.info('self.node_vols %s', self.node_vols)
+        logging.debug('self.node_vols %s', self.node_vols)
         if self.net_mat is not None:
             self.num_of_hosts = len(self.net_mat)
         else:
@@ -155,11 +155,11 @@ class ContainerizedNetwork (INetwork):
             MatrixType.LATENCY_MATRIX)
         self.net_jitter_mat = net_topology.get_matrix(
             MatrixType.JITTER_MATRIX)
-        logging.info('self.net_mat %s', self.net_mat)
-        logging.info('self.net_loss_mat %s', self.net_loss_mat)
-        logging.info('self.net_bw_mat %s', self.net_bw_mat)
-        logging.info('self.net_latency_mat %s', self.net_latency_mat)
-        logging.info('self.net_jitter_mat %s', self.net_jitter_mat)
+        logging.debug('self.net_mat %s', self.net_mat)
+        logging.debug('self.net_loss_mat %s', self.net_loss_mat)
+        logging.debug('self.net_bw_mat %s', self.net_bw_mat)
+        logging.debug('self.net_latency_mat %s', self.net_latency_mat)
+        logging.debug('self.net_jitter_mat %s', self.net_jitter_mat)
 
     def _init_containernet(self):
         self._setup_docker_nodes(0, self.num_of_hosts - 1)
@@ -177,7 +177,7 @@ class ContainerizedNetwork (INetwork):
         # from oasis means it is mapped with oasis workspace
         root_fs_from_oasis = g_oasis_root_fs
         # from user means it is mapped by `-p config_folder`
-        logging.info("INetwork config_base_path %s", self.config_base_path)
+        logging.debug("INetwork config_base_path %s", self.config_base_path)
         root_fs_from_user = f"{self.config_base_path}rootfs"
         # root_fs_from_user and root_fs_from_oasis may be the same
         is_same_root_fs = is_same_path(
@@ -204,7 +204,7 @@ class ContainerizedNetwork (INetwork):
 
     def _run_init_script(self, start_index, end_index): # pylint: disable=R1710
         if not self.node_init_script:
-            logging.info("No init script to run on the hosts.")
+            logging.debug("No init script to run on the hosts.")
             return True
         if start_index > end_index:
             return False
@@ -212,7 +212,7 @@ class ContainerizedNetwork (INetwork):
             logging.info("run init script %s on host %s",
                          self.node_init_script, self.hosts[i].name())
             self.hosts[i].cmdPrint(self.node_init_script)
-        logging.info(
+        logging.debug(
             "############### Oasis Init Node Scripts done ###########")
 
     def _setup_docker_nodes(self, start_index, end_index):
@@ -222,8 +222,6 @@ class ContainerizedNetwork (INetwork):
         """
         if start_index > end_index:
             return False
-        logging.info("Oasis finished Docker nodes setup with num of nodes %s",
-                     end_index - start_index + 1)
         for i in range(start_index, end_index + 1):
             if self.node_bind_port:
                 port_bindings = {i + 10000: i + 10000}
@@ -284,12 +282,10 @@ class ContainerizedNetwork (INetwork):
                         self.hosts[i])] = ipStr(link_ip + 1)
 
         for i in range(self.num_of_hosts):
-            logging.info("Oasis config ip routing for host %s",
+            logging.debug("Oasis config ip routing for host %s",
                          self.hosts[i].name())
             self.hosts[i].cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
             self.hosts[i].cmd('sysctl -p')
-        logging.info(
-            "############### Oasis Init Networking done ###########")
         return True
 
     def _addLink(
@@ -317,7 +313,7 @@ class ContainerizedNetwork (INetwork):
         def __set_bw_limit_on(host, attached_inf, bw_limit):
             host.cmd(
                 f"tc qdisc add dev {attached_inf} root handle 1: {bw_limit}")
-            logging.info(
+            logging.debug(
                 "apply bandwidth limit on egress interface %s with %s", attached_inf, bw_limit)
             return True
         default_queueing_strategy = "pfifo"
@@ -354,7 +350,7 @@ class ContainerizedNetwork (INetwork):
                 if self.net_bw_mat is not None:
                     current_bdp = int(
                         scaling_factor * delay * self.net_bw_mat[id1][id2] * 1000 / 8)
-                    logging.info("delay %d, bw %d, limits %d", delay,
+                    logging.debug("delay %d, bw %d, limits %d", delay,
                                  self.net_bw_mat[id1][id2], current_bdp)
                 else:
                     logging.warning(
@@ -363,7 +359,7 @@ class ContainerizedNetwork (INetwork):
                     jitter = self.net_jitter_mat[id1][id2]
                     if jitter > 0:
                         shaping_parameters += f" {self.net_jitter_mat[id1][id2]}ms distribution normal"
-        logging.info("shaping_parameters\"%s\"", shaping_parameters)
+        logging.debug("shaping_parameters\"%s\"", shaping_parameters)
         port = attached_inf[-1]
         ifb_interface = f"ifb{port}"
         self.hosts[id2].cmd(
@@ -386,7 +382,7 @@ class ContainerizedNetwork (INetwork):
             return False
         if not os.path.exists('/usr/bin/perf') or \
                 not os.path.isfile('/usr/bin/perf'):
-            logging.warning("perf is not available.")
+            logging.debug("perf is not available.")
             self.node_vols = [
                 vol for vol in self.node_vols if '/usr/bin/perf' not in vol]
         return True

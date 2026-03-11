@@ -30,10 +30,10 @@ def load_nested_config(nested_config_file: str,
     if not nested_config or 'containernet' not in nested_config:
         logging.error("No containernet found in the YAML file.")
         return NestedConfig(image="")
-    logging.info(f"loaded nested_config: %s", nested_config)
+    logging.debug(f"loaded nested_config: %s", nested_config)
     containernet_list = nested_config["containernet"]
     containernet_names = containernet_list.keys()
-    logging.info(
+    logging.debug(
         f"loaded containernet: %s", containernet_list)
     for containernet in containernet_names:
         if containernet == containernet_name:
@@ -60,7 +60,7 @@ class NestedContainernet():
         self.start_time = time.time()
         self.settings = settings if settings is not None else OasisSettings()
         self.user_name = oasis_workspace.split("/")[2]
-        logging.info(
+        logging.debug(
             "NestedContainernet user_name: %s", self.user_name)
         self.setUp()
 
@@ -76,7 +76,7 @@ class NestedContainernet():
     def setUp(self) -> None:
         logging.info(
             "########################## Oasis setup "
-            "Nested Containernet##########################")
+            "Nested Containernet ##########################")
         self.formatted_mounts = self.get_formatted_mnt()
 
     def tearDown(self) -> None:
@@ -87,7 +87,7 @@ class NestedContainernet():
         is_root = os.popen("whoami").read().strip() == "root"
         if not is_root:
             privilege_str = "sudo "
-        logging.info(
+        logging.debug(
             "NestedContainernet tearDown with privilege_str: %s",
             privilege_str)
         os.system(f"{privilege_str}docker container prune --force || true")
@@ -165,14 +165,14 @@ class NestedContainernet():
             f"/bin/bash -c \"{cmd}\""
         clean_cmd = f"docker exec {self.test_container_name} "\
             f"/bin/bash -c \"mn --clean >/dev/null 2>&1\" || true"
-        logging.info(
+        logging.debug(
             f"Oasis execute with \" %s \"", test_case_cmd)
         os.system(clean_cmd)
         os.system(test_case_cmd)
         os.system(clean_cmd)
 
     def get_formatted_mnt(self) -> str:
-        logging.info(
+        logging.debug(
             f"Nested Containernet config mounts: %s", self.config.mounts)
         if self.config.mounts is None:
             return ""
@@ -189,11 +189,9 @@ class NestedContainernet():
                     f"type=bind,source={repo_path}/,"\
                     f"target=/containernet/,readonly,bind-propagation=shared "
         # don't mount if {yaml_base_path} == {oasis_workspace}/test/
-        logging.info("Yaml config path: %s", self.yaml_base_path)
-        logging.info("Oasis workspace: %s", self.oasis_workspace)
         # in some cases, `yaml_base_path` is set by Users.
         if is_same_path(self.yaml_base_path, f"{self.oasis_workspace}/test/"):
-            logging.info(
+            logging.debug(
                 "NestedContainernet:: No config path mapping is needed.")
         else:
             # 2. mount yaml_base_path directory to {root_path}user/
@@ -217,6 +215,6 @@ class NestedContainernet():
                     f"type=bind,source={source},"\
                     f"target={target},readonly,bind-propagation=shared "
             self.formatted_mounts += mount_cmd
-        logging.info(
+        logging.debug(
             f"Nested Containernet formatted mounts: %s", self.formatted_mounts)
         return self.formatted_mounts

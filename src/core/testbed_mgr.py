@@ -10,9 +10,9 @@ def load_all_hosts(testbed_yaml_config):
     for host in testbed_yaml_config:
         host_config = HostConfig(**host)
         hosts_config.append(host_config)
-        logging.info("loaded host_config: %s", host_config)
+        logging.info("Loaded host config: %s", host_config)
     if len(hosts_config) == 0:
-        logging.error("No hosts are loaded for the testbed.")
+        logging.info("No hosts were loaded for the testbed.")
         return None
     return False
 

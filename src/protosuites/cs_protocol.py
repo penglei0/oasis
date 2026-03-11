@@ -17,7 +17,7 @@ class CSProtocol(IProtoSuite):
         # rewrite the protocol_args of client and server
         self.client.protocol_args += self.protocol_args
         self.server.protocol_args += self.protocol_args
-        logging.info("CSProtocol config %s",
+        logging.debug("CSProtocol config %s",
                      self.config)
         logging.info("client protocol %s args: %s",
                      self.client.config.name, self.client.protocol_args)

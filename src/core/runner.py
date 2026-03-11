@@ -60,7 +60,7 @@ def diagnostic_test_results(test_results, top_des):
             "##########################", test_type, test_result)
         test_config = test_result['config']
         result_files = []
-        logging.info("############ test_result['results'] len %s %s", len(
+        logging.debug("############ test_result['results'] len %s %s", len(
             test_result['results']), test_result)
         for result in test_result['results']:
             if result.is_competition_test:
@@ -151,7 +151,7 @@ def load_predefined_protocols(config_base_path):
                 **protocol)
             predefined_proto_conf_dict[protocol['name']
                                        ].config_base_path = config_base_path
-            logging.info("load predefined protocol: %s",
+            logging.debug("load predefined protocol: %s",
                          predefined_proto_conf_dict[protocol['name']])
             continue
         # iterate over the protocols
@@ -160,12 +160,12 @@ def load_predefined_protocols(config_base_path):
         predefined_proto_conf_dict[protocol['name']
                                    ].config_base_path = config_base_path
         predefined_proto_conf_dict[protocol['name']].protocols = []
-        logging.info("load predefined protocol: %s",
+        logging.debug("load predefined protocol: %s",
                      predefined_proto_conf_dict[protocol['name']])
         for sub_proto in protocol['protocols']:
             predefined_proto_conf_dict[protocol['name']].protocols.append(
                 ProtoConfig(**sub_proto))
-            logging.info("load predefined sub-protocol: %s",
+            logging.debug("load predefined sub-protocol: %s",
                          sub_proto)
 
         # save the config_base_path for sub-protocol
@@ -444,9 +444,7 @@ class TestRunner:
         for i, p in enumerate(processes):
             max_wait_time = self.__get_test_time()
             logging.info(
-                "########################## Oasis process execute ########################## ")
-            logging.info(
-                "Wait for process %s for test %s to complete in %s seconds", i, test_name, max_wait_time)
+                "Oasis waits for process %s for test %s to complete in %s seconds", i, test_name, max_wait_time)
             p.join(timeout=max_wait_time)
             if p.is_alive():
                 logging.error(f"Process %s for test %s is stuck.",
@@ -497,7 +495,7 @@ class TestRunner:
                     }
                 merged_results[shared_test_type]['results'].extend(
                     shared_test_result['results'])
-        logging.info(
+        logging.debug(
             "########## Oasis merge parallel test results. %s", merged_results)
         allow_failure = self.test_yml_config.get('allow_failure', False)
         diag_suc = diagnostic_test_results(
@@ -513,10 +511,10 @@ class TestRunner:
         # 5.2 move results(logs, diagrams) to "{cur_results_path}/{top_index}"
         cur_results_path = f"{self.root_path}test_results/{test_name}/"
         archive_dir = f"{cur_results_path}topology-{top_index}"
-        logging.info("cur_results_path %s, archive_dir %s",
+        logging.debug("cur_results_path %s, archive_dir %s",
                      cur_results_path, archive_dir)
         if not os.path.exists(archive_dir):
-            logging.info("Create archive directory %s", archive_dir)
+            logging.debug("Create archive directory %s", archive_dir)
             os.makedirs(archive_dir)
         # move all files and folders to the archive directory except folder which start with "topology-*"
         for root, dirs, files in os.walk(cur_results_path):
@@ -566,13 +564,13 @@ class TestRunner:
         """
         id = network.get_id()
         logging.info(
-            "########## Oasis process %d Performing the test for %s", id, test_name)
+            "Oasis process %d Performing the test for %s", id, test_name)
         success = network.perform_test()
         if not success:
             result_dict[id] = {"error": "perform_test_failed"}
         else:
             result_dict[id] = network.get_test_results()
-            logging.info("Process %s results: %s", id, result_dict[id])
+            logging.debug("Process %s results: %s", id, result_dict[id])
 
     def handle_failure(self):
         self.cleanup()
