@@ -5,7 +5,7 @@ from enum import IntEnum
 from dataclasses import dataclass, field
 from typing import Optional
 from protosuites.proto_info import IProtoInfo
-from var.global_var import g_root_path
+from var.settings import DEFAULT_ROOT_PATH
 
 
 class TestType(IntEnum):
@@ -61,6 +61,7 @@ class TestConfig:
     server_host: Optional[int] = field(default=None)
     allow_fail: Optional[bool] = field(default=False)
     args: Optional[str] = field(default="")  # args for test tool
+    root_path: str = field(default=DEFAULT_ROOT_PATH)
 
 
 @dataclass
@@ -74,7 +75,7 @@ class TestResult:
     is_success: bool = field(default=False)
     pattern: str = field(default="")
     record: str = field(default="")  # log file
-    result_dir: str = field(default=f"{g_root_path}")
+    result_dir: str = field(default="")
     is_competition_test: bool = field(default=False)
 
 
@@ -82,7 +83,8 @@ class ITestSuite(ABC):
     def __init__(self, config: TestConfig) -> None:
         self.base_name = ""
         self.config = config
-        self.result_dir = f"{g_root_path}test_results/{self.config.test_name}/"
+        root_path = self.config.root_path
+        self.result_dir = f"{root_path}test_results/{self.config.test_name}/"
         if not os.path.exists(f"{self.result_dir}"):
             os.makedirs(f"{self.result_dir}")
         if self.config.test_type is not None:

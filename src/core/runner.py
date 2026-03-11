@@ -29,7 +29,7 @@ from protosuites.bats.bats_brtp import BRTP
 from protosuites.bats.bats_brtp_proxy import BRTPProxy
 from data_analyzer.analyzer import AnalyzerConfig
 from data_analyzer.analyzer_factory import AnalyzerFactory
-from var.global_var import g_root_path
+from var.settings import DEFAULT_ROOT_PATH
 
 supported_execution_mode = ["serial", "parallel"]
 
@@ -93,7 +93,7 @@ def diagnostic_test_results(test_results, top_des):
     return True
 
 
-def load_test_tool(tool, test_name) -> ITestSuite:
+def load_test_tool(tool, test_name, root_path=DEFAULT_ROOT_PATH) -> ITestSuite:
     test_conf = TestConfig(
         name=tool['name'],
         test_name=test_name,
@@ -103,7 +103,8 @@ def load_test_tool(tool, test_name) -> ITestSuite:
         packet_type=tool['packet_type'] if 'packet_type' in tool else 'tcp',
         bitrate=tool['bitrate'] if 'bitrate' in tool else 0,
         client_host=tool['client_host'], server_host=tool['server_host'],
-        args=tool['args'] if 'args' in tool else '')
+        args=tool['args'] if 'args' in tool else '',
+        root_path=root_path)
     if tool['name'] == 'bats_iperf':
         test_conf.test_type = TestType.throughput
         return IperfBatsTest(test_conf)
@@ -224,7 +225,8 @@ def load_target_protocols_config(config_base_path, test_case_yaml):
     return None
 
 
-def setup_test(test_case_yaml, internal_target_protocols, network: INetwork):
+def setup_test(test_case_yaml, internal_target_protocols, network: INetwork,
+               root_path=DEFAULT_ROOT_PATH):
     """setup the test case configuration.
     """
     # read the strategy matrix
@@ -233,6 +235,7 @@ def setup_test(test_case_yaml, internal_target_protocols, network: INetwork):
     test_tools = test_case_yaml['test_tools']
     for proto_config in internal_target_protocols:
         proto_config.test_name = test_case_name
+        proto_config.root_path = root_path
         logging.info("Added %s protocol, version %s.",
                      proto_config.name, proto_config.version)
         if proto_config.name not in ('brtp', 'btp', 'udp'):
@@ -316,7 +319,8 @@ def setup_test(test_case_yaml, internal_target_protocols, network: INetwork):
             competition_flow=flow_params)
     for name in test_tools.keys():
         test_tools[name]['name'] = name
-        loaded_test_tool = load_test_tool(test_tools[name], test_case_name)
+        loaded_test_tool = load_test_tool(test_tools[name], test_case_name,
+                                            root_path)
         if flow_competition_config and 'iperf' in loaded_test_tool.name():
             competition_test = FlowCompetitionTest(
                 config=flow_competition_config,
@@ -332,7 +336,8 @@ def setup_test(test_case_yaml, internal_target_protocols, network: INetwork):
 
 
 class TestRunner:
-    def __init__(self, test_yml_config, path, network_mgr: INetworkManager):
+    def __init__(self, test_yml_config, path, network_mgr: INetworkManager,
+                 root_path=DEFAULT_ROOT_PATH):
         self.test_yml_config = test_yml_config
         self.config_path = path
         self.target_protocols = None
@@ -341,6 +346,7 @@ class TestRunner:
         self.net_num = 0
         self.top_description = ''
         self.is_ready_flag = False
+        self.root_path = root_path
         self._load_protocols()
 
     def init(self, node_config, topology: ITopology):
@@ -403,7 +409,8 @@ class TestRunner:
                 selected_protocols = self.target_protocols
             if setup_test(self.test_yml_config,
                           selected_protocols,
-                          networks[i]) is False:
+                          networks[i],
+                          self.root_path) is False:
                 logging.error("Error: failed to setup the test.")
                 return False
         return True
@@ -504,7 +511,7 @@ class TestRunner:
             logging.warning(
                 "Test %s results analysis not passed, and failure is ignored.", test_name)
         # 5.2 move results(logs, diagrams) to "{cur_results_path}/{top_index}"
-        cur_results_path = f"{g_root_path}test_results/{test_name}/"
+        cur_results_path = f"{self.root_path}test_results/{test_name}/"
         archive_dir = f"{cur_results_path}topology-{top_index}"
         logging.info("cur_results_path %s, archive_dir %s",
                      cur_results_path, archive_dir)
@@ -572,7 +579,7 @@ class TestRunner:
         test_name = self.test_yml_config['name']
         logging.error("Test %s failed.", test_name)
         # create a regular file to indicate the test failure
-        with open(f"{g_root_path}test_results/test.failed", 'w', encoding='utf-8') as f_failed:
+        with open(f"{self.root_path}test_results/test.failed", 'w', encoding='utf-8') as f_failed:
             f_failed.write(f"{test_name}")
         sys.exit(1)
 
