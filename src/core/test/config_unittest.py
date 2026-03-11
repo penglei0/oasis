@@ -128,7 +128,8 @@ class TestLoadAllTests(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[3]
         tests = load_all_tests(str(repo_root / 'test' / 'protocol-ci-test.yaml'))
 
-        test3 = next(test for test in tests if test.name == 'test3')
+        test3 = next((test for test in tests if test.name == 'test3'), None)
+        self.assertIsNotNone(test3)
         test_tools = test3.yaml()['test_tools']
 
         self.assertEqual(set(test_tools.keys()), {'bats_iperf'})
