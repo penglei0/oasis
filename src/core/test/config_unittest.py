@@ -124,7 +124,7 @@ class TestLoadAllTests(unittest.TestCase):
         # Verify the result is empty
         self.assertEqual(len(result), 0)
 
-    def test_load_all_tests_keeps_protocol_ci_bats_iperf_nested(self):
+    def test_protocol_ci_bats_iperf_nested_config(self):
         repo_root = Path(__file__).resolve().parents[3]
         tests = load_all_tests(str(repo_root / 'test' / 'protocol-ci-test.yaml'))
 
