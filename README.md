@@ -8,20 +8,7 @@
 Oasis is a Containernet-based network emulation platform for validating transport protocols across diverse topologies, link qualities, and routing strategies.
 > Oasis is built on [Containernet](https://github.com/containernet/containernet/), a fork of [Mininet](http://mininet.org/), and [Docker](https://www.docker.com/).
 
-## Architecture
-
-<div align="center" style="text-align:center"> 
-<img src="./docs/imgs/oasis_arch.svg" alt="Oasis" style="zoom:50%;"></div>
-<div align="center">Fig 1.1 Oasis architecture brief view</div>
-
-Workflow of a Oasis test is orchestrated by several key components:
-
-- construct a `INetwork` with a given yaml configuration which describes the network topology.
-- load `ITestSuite`(the test tool) from yaml configuration.
-- load `IProtoSuite`(the target test protocol) from yaml configuration.
-- run `IProtoSuite` on `INetwork`.
-- perform the test with `ITestSuite` on `INetwork`.
-- read/generate test results by `IDataAnalyzer`.
+See [docs/arch.md](docs/arch.md) for the architecture overview and implementation details.
 
 ## Capabilities
 
