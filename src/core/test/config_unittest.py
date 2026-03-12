@@ -168,7 +168,7 @@ class TestLoadAllTests(unittest.TestCase):
             'server_host': 1,
         })
 
-    def test_quic_multipath_topology_has_three_parallel_paths(self):
+    def test_quic_multipath_3paths_topology_has_three_parallel_paths(self):
         repo_root = self.find_repo_root()
         top_config = IConfig.load_config_reference(
             str(repo_root / 'test'),
@@ -185,6 +185,7 @@ class TestLoadAllTests(unittest.TestCase):
         adjacency = topology.get_matrix(MatrixType.ADJACENCY_MATRIX)
 
         def count_simple_paths(graph, src, dst, visited):
+            """Count all simple paths between two nodes via depth-first search."""
             if src == dst:
                 return 1
             visited.add(src)
