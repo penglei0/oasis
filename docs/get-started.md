@@ -346,7 +346,7 @@ The following example defines a 2-node linear network and sweeps link loss and l
       init_value: [1000]
 ```
 
-`link_loss` will take values `[2, 4, 6, 8]`, and `link_latency` will take values `[10, 30, 50, 70]`. That produces 16 different topology variants.
+`step_num: 3` means the initial value plus three additional steps. As a result, `link_loss` takes values `[2, 4, 6, 8]`, and `link_latency` takes values `[10, 30, 50, 70]`. That produces 16 different topology variants.
 
 After the run, the results are stored in a structure similar to:
 
