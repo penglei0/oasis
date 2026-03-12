@@ -130,3 +130,10 @@ topology:
     topology_type: mesh
     nodes: 8
     json_description: mesh-network-no-loss.json
+  # Mesh topologies can model multipath by creating multiple relay-based
+  # end-to-end paths. The current adjacency-matrix topology model does not
+  # support multiple direct links between the same two hosts.
+  - name: quic_multipath_3paths
+    topology_type: mesh
+    nodes: 5
+    json_description: quic-multipath-3paths.json

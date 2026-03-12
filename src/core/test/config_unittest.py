@@ -2,9 +2,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 import yaml
-from src.core.config import load_all_tests
+from src.core.config import IConfig, load_all_tests
 from src.core.config import Test, TopologyConfig
-from src.core.topology import TopologyType
+from src.core.mesh_topology import MeshTopology
+from src.core.topology import MatrixType, TopologyType
 
 
 class TestLoadAllTests(unittest.TestCase):
@@ -166,6 +167,36 @@ class TestLoadAllTests(unittest.TestCase):
             'client_host': 0,
             'server_host': 1,
         })
+
+    def test_quic_multipath_3paths_topology_has_three_parallel_paths(self):
+        repo_root = self.find_repo_root()
+        top_config = IConfig.load_config_reference(
+            str(repo_root / 'test'),
+            'predefined.topology.yaml',
+            'quic_multipath_3paths',
+            '',
+            {},
+            'topology')
+
+        self.assertIsNotNone(top_config)
+
+        topology = MeshTopology(str(repo_root / 'test'), top_config, False)
+        topology.load_all_mats(top_config.json_description)
+        adjacency = topology.get_matrix(MatrixType.ADJACENCY_MATRIX)
+
+        def count_simple_paths(graph, src, dst, visited):
+            """Count all simple paths between two nodes via depth-first search."""
+            if src == dst:
+                return 1
+            visited.add(src)
+            total = 0
+            for neighbor, connected in enumerate(graph[src]):
+                if connected and neighbor not in visited:
+                    total += count_simple_paths(graph, neighbor, dst, visited)
+            visited.remove(src)
+            return total
+
+        self.assertEqual(count_simple_paths(adjacency, 0, 4, set()), 3)
 
 
 class TestTestClass(unittest.TestCase):

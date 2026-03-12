@@ -93,7 +93,8 @@ id_rsa*
 
 # results
 test_results
-test/
+test/*
+!test/quic-multipath-3paths.json
 config/
 !test//
 !src/test/

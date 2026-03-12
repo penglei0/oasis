@@ -247,6 +247,21 @@ For more complex layouts, use `json_description`. The following example defines 
   json_description: 4-hops-linear-network.json
 ```
 
+For QUIC multipath experiments, `test/predefined.topology.yaml` now includes
+`quic_multipath_3paths`, a mesh topology with three parallel end-to-end paths
+between `host0` and `host4`:
+
+```text
+host0 -> host1 -> host4
+      -> host2 ->
+      -> host3 ->
+```
+
+This relay-based mesh is the supported way to model multipath in Oasis today.
+The current adjacency-matrix topology format can represent only one direct link
+per host pair, so adding multiple direct links between the same two hosts would
+require a future core architecture change.
+
 ### 4.2 Change test-tool parameters
 
 Throughput tests are configured under `test_tools`. Example `iperf` configuration:
