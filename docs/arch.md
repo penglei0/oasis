@@ -5,8 +5,8 @@ Oasis is a **Containernet-based network emulation platform** for validating tran
 This document summarizes the current architecture implemented in the repository and highlights the refactorings that would most improve maintainability and flexibility.
 
 <div align="center" style="text-align:center">
-<img src="./imgs/oasis_arch.svg" alt="Oasis" style="zoom:50%;"></div>
-<div align="center">Fig 1.1 Oasis architecture brief view</div>
+<img src="./imgs/oasis_arch.svg" alt="Oasis architecture diagram showing the workflow from YAML configuration through network emulation to test results" width="50%"></div>
+<div align="center">Oasis architecture overview</div>
 
 At a high level, the workflow of an Oasis test is orchestrated by several key components:
 
