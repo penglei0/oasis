@@ -4,6 +4,19 @@ Oasis is a **Containernet-based network emulation platform** for validating tran
 
 This document summarizes the current architecture implemented in the repository and highlights the refactorings that would most improve maintainability and flexibility.
 
+<div align="center" style="text-align:center">
+<img src="./imgs/oasis_arch.svg" alt="Oasis architecture diagram showing the workflow from YAML configuration through network emulation to test results" width="50%"></div>
+<div align="center">Oasis architecture overview</div>
+
+At a high level, the workflow of an Oasis test is orchestrated by several key components:
+
+- construct an `INetwork` from the YAML configuration that describes the network topology,
+- load an `ITestSuite` (the test tool) from YAML configuration,
+- load an `IProtoSuite` (the target protocol) from YAML configuration,
+- run the `IProtoSuite` on the `INetwork`,
+- perform the test with the `ITestSuite` on the `INetwork`,
+- read and generate test results with `IDataAnalyzer`.
+
 ## 1. System view
 
 Oasis is organized around five major responsibilities:
