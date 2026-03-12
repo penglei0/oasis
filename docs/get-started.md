@@ -307,7 +307,8 @@ Currently supported routing strategies:
 
 - `static_route`: static routes configured with `ip route add`; best for chain networks
 - `static_bfs`: static routes configured with `ip route add`; works for mesh networks, including chain networks
-- `olsr`: dynamic routing configured by the OLSR daemon; works for chain networks
+- `olsr_route`: dynamic routing configured by the OLSR daemon; works for chain networks
+- `openr_route`: dynamic routing configured by the Open/R daemon; works for mesh and chain networks
 
 ## 5. Test results
 
