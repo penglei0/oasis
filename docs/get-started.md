@@ -167,7 +167,7 @@ For example, the following preset names are already available in `test/predefine
 - `ubuntu-22.04-lttng`
 - `ubuntu-24.04-lttng`
 
-If you want to keep the same YAML file but switch host presets at runtime, `src/start.py` also supports `--host=<preset-name>`.
+If you want to keep the same YAML file but switch host presets at runtime, `src/start.py` also supports `--host=<preset-name>`. Note that in the current implementation, using `--host` also forces the presets file back to the default `test/predefined.node_config.yaml`, so any custom `host.image.presets` path set in the YAML will be ignored for that run.
 
 ## 3. Run a test
 
