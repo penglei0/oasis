@@ -6,6 +6,7 @@ This guide provides simple steps to getting started with Oasis.
   - [1. Prerequisites](#1-prerequisites)
     - [prepare python environment](#prepare-python-environment)
     - [For Linux platform: Build docker image](#for-linux-platform-build-docker-image)
+    - [For Linux platform: Fetch prebuilt images from the container registry](#for-linux-platform-fetch-prebuilt-images-from-the-container-registry)
     - [For windows platform: WSL kernel recompile](#for-windows-platform-wsl-kernel-recompile)
   - [2. Run test](#2-run-test)
     - [2.1 Change topology parameters](#21-change-topology-parameters)
@@ -65,6 +66,29 @@ The required docker images are defined in `test/predefined.node_config.yaml` and
 The nested Containernet image is built from the bundled upstream source tree in `containernet/`. If you clone Oasis without submodules, run `git submodule update --init --recursive` before building.
 
 when using `src/start.py` to lunch a test, the option `--containernet=default` specifies the image to use and `node_config` section in the test case YAML (e.g., `test/protocol-ci-test.yaml`)    specifies the docker images for host nodes in Containernet.
+
+### For Linux platform: Fetch prebuilt images from the container registry
+
+Prebuilt images are published to the GitHub Container Registry at <https://github.com/penglei0/oasis/pkgs/container/oasis%2Fcontainernet>. The published image matrix is defined in `.github/workflows/.github.publish-docker.yml`.
+
+The workflow currently publishes the following images:
+
+| Image | Available tags | Example pull command |
+| --- | --- | --- |
+| `ghcr.io/penglei0/oasis/containernet` | `22.04`, `24.04`, `vX.Y.Z-22.04`, `vX.Y.Z-24.04` | `sudo docker pull ghcr.io/penglei0/oasis/containernet:24.04` |
+| `ghcr.io/penglei0/oasis/ubuntu-generic` | `22.04`, `24.04`, `vX.Y.Z-22.04`, `vX.Y.Z-24.04` | `sudo docker pull ghcr.io/penglei0/oasis/ubuntu-generic:24.04` |
+
+Use the Ubuntu-version tags when you want the latest published image for a supported base OS, or use `vX.Y.Z-<ubuntu-version>` when you want a release-pinned image.
+
+```bash
+# pull the nested Containernet image
+sudo docker pull ghcr.io/penglei0/oasis/containernet:24.04
+
+# pull the default host-node image used by Oasis tests
+sudo docker pull ghcr.io/penglei0/oasis/ubuntu-generic:24.04
+```
+
+If you prefer the published images over local builds, update your Oasis configuration to reference the pulled image tags in the same way as locally built images.
 
 ### For windows platform: WSL kernel recompile
 
