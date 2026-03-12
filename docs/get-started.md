@@ -65,7 +65,7 @@ The required docker images are defined in `test/predefined.node_config.yaml` and
 
 The nested Containernet image is built from the bundled upstream source tree in `containernet/`. If you clone Oasis without submodules, run `git submodule update --init --recursive` before building.
 
-when using `src/start.py` to lunch a test, the option `--containernet=default` specifies the image to use and `node_config` section in the test case YAML (e.g., `test/protocol-ci-test.yaml`)    specifies the docker images for host nodes in Containernet.
+when using `src/start.py` to launch a test, the option `--containernet=default` specifies the image to use and `node_config` section in the test case YAML (e.g., `test/protocol-ci-test.yaml`)    specifies the docker images for host nodes in Containernet.
 
 ### For Linux platform: Fetch prebuilt images from the container registry
 
