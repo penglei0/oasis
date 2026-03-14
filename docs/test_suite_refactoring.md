@@ -484,7 +484,7 @@ This is the extension contract we are aiming for: **one new file, zero modificat
 
 ## 9. Implementation Status
 
-The following changes have been implemented and merged:
+The following changes have been implemented in this PR:
 
 ### 9.1 Changes to `src/testsuites/test.py`
 
