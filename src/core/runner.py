@@ -40,7 +40,7 @@ def _ensure_testsuites_discovered() -> None:
     and ensures that any new testsuites/test_<tool>.py module is picked up
     automatically the first time tests are loaded.
     """
-    global _TESTSUITES_DISCOVERED
+    global _TESTSUITES_DISCOVERED  # pylint: disable=global-statement
     if _TESTSUITES_DISCOVERED:
         return
 
