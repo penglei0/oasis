@@ -325,30 +325,41 @@ def load_test_suite_from_registry(
     """
     name = tool['name']
 
+    def _try_construct(entry, cls):
+        """Attempt to construct a suite from a registry *entry*.
+
+        Returns the suite instance, or ``None`` if the class does not
+        provide ``from_tool_dict()``.  A warning is logged in the latter
+        case so that registration mistakes surface quickly instead of
+        being silently absorbed by the ``RegularTest`` fallback.
+        """
+        if not hasattr(cls, 'from_tool_dict'):
+            logging.warning(
+                "Registry entry '%s' (%s) has no from_tool_dict(); "
+                "falling back to RegularTest. Add a from_tool_dict() "
+                "classmethod to complete the registration.",
+                name, cls.__name__)
+            return None
+        # Inject registry-provided test_type into the tool dict if needed.
+        tool_with_type = tool
+        entry_test_type = entry.get('test_type')
+        if entry_test_type is not None and 'test_type' not in tool:
+            tool_with_type = dict(tool)
+            tool_with_type['test_type'] = entry_test_type
+        return cls.from_tool_dict(tool_with_type, test_name, root_path)
+
     # 1. exact match
     if name in _TEST_SUITE_REGISTRY:
         entry = _TEST_SUITE_REGISTRY[name]
-        cls = entry['class']
-        if hasattr(cls, 'from_tool_dict'):
-            # Inject registry-provided test_type into the tool dict if needed.
-            tool_with_type = tool
-            entry_test_type = entry.get('test_type')
-            if entry_test_type is not None and 'test_type' not in tool:
-                tool_with_type = dict(tool)
-                tool_with_type['test_type'] = entry_test_type
-            return cls.from_tool_dict(tool_with_type, test_name, root_path)
+        result = _try_construct(entry, entry['class'])
+        if result is not None:
+            return result
 
     # 2. contains match
     for key, entry in _TEST_SUITE_REGISTRY.items():
         if entry['match'] == 'contains' and key in name:
-            cls = entry['class']
-            if hasattr(cls, 'from_tool_dict'):
-                # Inject registry-provided test_type into the tool dict if needed.
-                tool_with_type = tool
-                entry_test_type = entry.get('test_type')
-                if entry_test_type is not None and 'test_type' not in tool:
-                    tool_with_type = dict(tool)
-                    tool_with_type['test_type'] = entry_test_type
-                return cls.from_tool_dict(tool_with_type, test_name, root_path)
+            result = _try_construct(entry, entry['class'])
+            if result is not None:
+                return result
 
     return None

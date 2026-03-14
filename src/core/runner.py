@@ -3,10 +3,10 @@ import sys
 import copy
 import logging
 import multiprocessing
-from multiprocessing import Manager
-import yaml
 import pkgutil
 import importlib
+from multiprocessing import Manager
+import yaml
 
 from interfaces.network_mgr import INetworkManager
 from interfaces.network import INetwork
@@ -46,7 +46,7 @@ def _ensure_testsuites_discovered() -> None:
 
     try:
         prefix = testsuites.__name__ + "."
-        for finder, name, ispkg in pkgutil.iter_modules(testsuites.__path__, prefix):
+        for _finder, name, _ispkg in pkgutil.iter_modules(testsuites.__path__, prefix):
             # Only import test suite modules following the test_* naming convention
             base_name = name.rsplit(".", 1)[-1]
             if not base_name.startswith("test_"):

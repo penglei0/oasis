@@ -309,6 +309,34 @@ class TestLoadTestSuiteFromRegistry(unittest.TestCase):
         suite = load_test_suite_from_registry(tool, 'test1', self.root_path)
         self.assertIsNone(suite)
 
+    def test_missing_from_tool_dict_logs_warning(self):
+        """Registered class without from_tool_dict() should log a warning."""
+        # Register a dummy class without from_tool_dict
+        class _IncompleteTest(ITestSuite):
+            def pre_process(self):
+                return True
+            def post_process(self):
+                return True
+            def _run_test(self, network, proto_info):
+                return True
+
+        _TEST_SUITE_REGISTRY['_incomplete'] = {
+            'class': _IncompleteTest,
+            'match': 'exact',
+            'test_type': None,
+        }
+        try:
+            tool = {'name': '_incomplete', 'client_host': 0, 'server_host': 1}
+            with self.assertLogs('root', level='WARNING') as cm:
+                suite = load_test_suite_from_registry(
+                    tool, 'test1', self.root_path)
+            self.assertIsNone(suite)
+            self.assertTrue(any(
+                '_IncompleteTest' in msg and 'from_tool_dict' in msg
+                for msg in cm.output))
+        finally:
+            del _TEST_SUITE_REGISTRY['_incomplete']
+
 
 class TestFromToolDict(unittest.TestCase):
     """from_tool_dict() should correctly populate TestConfig."""
