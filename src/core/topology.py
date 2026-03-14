@@ -247,7 +247,6 @@ class ITopology(ABC):
         top_node = min(middle_nodes)
         bottom_node = max(middle_nodes)
         return "\n".join([
-            f"             {self._host_name(top_node)}",
             f"{self._host_name(left_node)} <----"
             f"{self._link_label(left_node, top_node)}-----> "
             f"{self._host_name(top_node)} <----"
@@ -257,8 +256,7 @@ class ITopology(ABC):
             f"{self._link_label(left_node, bottom_node)}-----> "
             f"{self._host_name(bottom_node)} <----"
             f"{self._link_label(bottom_node, right_node)}-----> "
-            f"{self._host_name(right_node)}",
-            f"             {self._host_name(bottom_node)}"
+            f"{self._host_name(right_node)}"
         ])
 
     def _render_rectangle(self, adj_matrix):

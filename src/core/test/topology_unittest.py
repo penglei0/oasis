@@ -79,16 +79,14 @@ class TestTopologyAsciiArt(unittest.TestCase):
 
         ascii_art = topology.ascii_art().splitlines()
 
-        self.assertEqual(ascii_art[0].strip(), 'h1')
         self.assertEqual(
-            ascii_art[1],
+            ascii_art[0],
             'h0 <----(1000,25ms,0%)-----> h1 <----(1000,25ms,0%)-----> h3'
         )
         self.assertEqual(
-            ascii_art[2],
+            ascii_art[1],
             'h0 <----(1000,25ms,0%)-----> h2 <----(1000,25ms,0.5%)-----> h3'
         )
-        self.assertEqual(ascii_art[-1].strip(), 'h2')
 
     def test_mesh_topology_ascii_art_renders_rectangle_layout(self):
         topology = self.make_mesh_topology(
