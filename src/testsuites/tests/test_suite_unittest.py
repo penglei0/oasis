@@ -5,20 +5,20 @@ import shutil
 import tempfile
 import unittest
 
-from src.testsuites.test import (
+from testsuites.test import (
     TestConfig, TestType, ITestSuite, PROXY_PROTOCOLS,
     register_test_suite, get_test_suite_registry,
     load_test_suite_from_registry, _TEST_SUITE_REGISTRY,
 )
 
 # Force registration of all built-in test suites by importing them
-from src.testsuites.test_iperf import IperfTest
-from src.testsuites.test_iperf_bats import IperfBatsTest
-from src.testsuites.test_rtt import RTTTest
-from src.testsuites.test_ping import PingTest
-from src.testsuites.test_scp import ScpTest
-from src.testsuites.test_sshping import SSHPingTest
-from src.testsuites.test_regular import RegularTest
+from testsuites.test_iperf import IperfTest
+from testsuites.test_iperf_bats import IperfBatsTest
+from testsuites.test_rtt import RTTTest
+from testsuites.test_ping import PingTest
+from testsuites.test_scp import ScpTest
+from testsuites.test_sshping import SSHPingTest
+from testsuites.test_regular import RegularTest
 
 
 # ---------------------------------------------------------------------------
