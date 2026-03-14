@@ -1,4 +1,5 @@
 import logging
+import time
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
 from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
@@ -40,6 +41,16 @@ class SSHPingTest(ITestSuite):
     def pre_process(self):
         return True
 
+    def _max_wait_time(self):
+        interval_num = self.config.interval_num or 10
+        interval = self.config.interval or 1
+        return int(interval_num * interval) + 1
+
+    def _wait_and_kill(self, host):
+        """Wait for sshping to finish, then forcibly stop it."""
+        time.sleep(self._max_wait_time())
+        host.cmd(f'pkill -9 -f {self.binary_path}')
+
     def _run_test(self, network: INetwork, proto_info: IProtoInfo):
         hosts = network.get_hosts()
         if hosts is None:
@@ -60,16 +71,19 @@ class SSHPingTest(ITestSuite):
                     "%s to %s ###############", hosts[i].name(), hosts[0].name())
                 hosts[i].cmd(
                     f'{self.binary_path} -i /root/.ssh/id_rsa'
-                    f' -H root@{receiver_ip} > {self.result.record}')
+                    f' -H root@{receiver_ip} > {self.result.record} &')
+            self._wait_and_kill(hosts[1])
             return True
         # Run sshping test from client to server
         receiver_ip, _ = self.resolve_receiver(network, proto_info)
+        client = hosts[self.config.client_host]
         logging.info(
             f"############### Oasis SSHPingTest from "
             "%s to %s ###############",
-            hosts[self.config.client_host].name(),
+            client.name(),
             hosts[self.config.server_host].name())
-        hosts[self.config.client_host].cmd(
+        client.cmd(
             f'{self.binary_path} -i /root/.ssh/id_rsa'
-            f' -H root@{receiver_ip} > {self.result.record}')
+            f' -H root@{receiver_ip} > {self.result.record} &')
+        self._wait_and_kill(client)
         return True
