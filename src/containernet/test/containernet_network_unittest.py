@@ -1,6 +1,6 @@
 import sys
 import unittest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 # containernet_network imports mininet which is not available in the
 # unit-test environment.  Stub the modules out before importing.
