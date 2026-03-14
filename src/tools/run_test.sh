@@ -37,12 +37,12 @@ print_message() {
 }
 
 delete_flag_files() {
-    if [ -f "$current_base_path"/"$test_failed_flag_file" ]; then
-        ${has_root_privilege}rm "$current_base_path"/"$test_failed_flag_file"
+    if [ -f "$test_failed_flag_file" ]; then
+        ${has_root_privilege}rm "$test_failed_flag_file"
     fi
 
-    if [ -f "$current_base_path"/"$test_success_flag_file" ]; then
-        ${has_root_privilege}rm "$current_base_path"/"$test_success_flag_file"   
+    if [ -f "$test_success_flag_file" ]; then
+        ${has_root_privilege}rm "$test_success_flag_file"
     fi
 }
 
@@ -216,16 +216,15 @@ exe_cmd=$has_root_privilege"python3 $default_oasis_src_path/src/start.py --conta
 print_message "Oasis test with command: $exe_cmd" pass
 # Run the test
 $exe_cmd
-test_result_dir=$default_oasis_test_results_path"/""$test_name"
 
 
 print_message "#####################################################################"
-if [ -f "${current_base_path}/"$test_failed_flag_file" ] || [ ! -f "${current_base_path}/"$test_success_flag_file" ]; then
-    print_message "Oasis test failed on ""$test_yaml_file" fail
+if [ -f "$test_failed_flag_file" ] || [ ! -f "$test_success_flag_file" ]; then
+    print_message "Oasis test failed on $test_yaml_file" fail
     exit 1
 else
     print_message "Oasis test success" pass
-    print_message "Oasis test results were saved to $default_oasis_test_results_path"/""$test_name""
+    print_message "Oasis test results were saved to $default_oasis_test_results_path/$test_name"
 fi
 print_message "#####################################################################"
 
@@ -240,14 +239,35 @@ else
 fi
 print_message "Processing test results with privilege: '$has_root_privilege' '$is_root'" pass
 
-# TODO(.): do some processing of test results
-# e.g., extract data from log files, generate index.html, etc.
-if [ -f $tool_extract_data_script ]; then
-    ${has_root_privilege}python3 -u $tool_extract_data_script "$test_result_dir"
-fi
+# Post-processing: extract data and generate index for test result directories.
+# When test_name is specified, process that single directory; otherwise discover
+# all test subdirectories under the results root.
+process_test_results() {
+    local dir="$1"
+    if [ -f "$tool_extract_data_script" ]; then
+        ${has_root_privilege}python3 -u "$tool_extract_data_script" "$dir"
+        print_message "Data extraction completed for $dir." pass
+    fi
+    if [ -f "$tool_generate_index_script" ]; then
+        ${has_root_privilege}python3 -u "$tool_generate_index_script" "$dir"
+        print_message "Index generation completed for $dir." pass
+    fi
+}
 
-if [ -f $tool_generate_index_script ]; then
-    ${has_root_privilege}python3 -u $tool_generate_index_script "$test_result_dir"
+if [ -n "$test_name" ]; then
+    process_test_results "$default_oasis_test_results_path/$test_name"
+else
+    # No test_name specified; discover test subdirectories
+    found_sub_dir=""
+    for sub_dir in "$default_oasis_test_results_path"/*/; do
+        if [ -d "$sub_dir" ]; then
+            found_sub_dir="true"
+            process_test_results "$sub_dir"
+        fi
+    done
+    if [ -z "$found_sub_dir" ]; then
+        print_message "No test result subdirectories found under $default_oasis_test_results_path" fail
+    fi
 fi
 
 exit 0

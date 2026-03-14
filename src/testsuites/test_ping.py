@@ -2,10 +2,34 @@ import logging
 
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
-from .test import (ITestSuite)
+from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
 
 
+@register_test_suite('ping', test_type=TestType.latency)
 class PingTest(ITestSuite):
+    """ICMP ping latency test.
+
+    When ``client_host`` / ``server_host`` are not specified, each host
+    (except host 0) pings its own IP address.
+    """
+
+    @classmethod
+    def from_tool_dict(cls, tool: dict, test_name: str,
+                       root_path: str) -> 'PingTest':
+        """Build a :class:`PingTest` from a YAML tool dictionary."""
+        config = TestConfig(
+            name=tool['name'],
+            test_name=test_name,
+            interval=tool.get('interval', 1.0),
+            interval_num=tool.get('interval_num', 10),
+            client_host=tool.get('client_host'),
+            server_host=tool.get('server_host'),
+            args=tool.get('args', ''),
+            test_type=TestType.latency,
+            root_path=root_path,
+        )
+        return cls(config)
+
     def post_process(self):
         return True
 

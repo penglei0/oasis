@@ -3,12 +3,13 @@ import os
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Dict, Tuple, Type
 from protosuites.proto_info import IProtoInfo
 from var.settings import DEFAULT_ROOT_PATH
 
 
 class TestType(IntEnum):
+    """Enumeration of supported test measurement types."""
     throughput = 0
     latency = 1
     jitter = 2
@@ -27,23 +28,39 @@ test_type_str_mapping = {
     TestType.scp: "scp"
 }
 
+# ---------------------------------------------------------------------------
+# Proxy-style protocols: traffic enters the tunnel on the **client** side.
+# All other tunnel / direct protocols: traffic reaches the **server** side.
+# ---------------------------------------------------------------------------
+PROXY_PROTOCOLS = frozenset({"KCP", "QUIC"})
+
 
 @dataclass
 class TestConfig:
-    """
-    TestConfig is a dataclass that holds the configuration for the test.
-    interval: The interval time for the test.
-    interval_num: The number of intervals.
-    packet_size: The size of the packet to be sent.
-    packet_count: The number of packets to be sent.
-    test_type: The type of test to be performed.
-    client_host: The host id of the client.
-        for iperf, iperf client will be run on this host.
-        if None, iperf client will be run on all hosts.
-    server_host: The host id of the server.
-        for iperf, iperf server will be run on this host.
-        If None, iperf server will be run on all hosts.
-    allow_fail: A boolean value that indicates whether the test can fail.
+    """Configuration shared by every ``ITestSuite`` implementation.
+
+    Fields cover the union of parameters needed by all current test tools.
+    Each tool uses the subset that is relevant to it — see the per-tool
+    ``from_tool_dict()`` class methods for the authoritative mapping from
+    YAML keys to ``TestConfig`` fields.
+
+    Attributes:
+        name:         Name of the test tool binary (e.g. ``iperf3``, ``ping``).
+        test_name:    Logical name of the test case (from the YAML key).
+        interval:     Reporting / sampling interval in seconds.
+        interval_num: Number of reporting intervals.
+        parallel:     Number of parallel streams (iperf only).
+        packet_size:  Payload size in bytes (rtt only).
+        packet_count: Number of packets per iteration (rtt only).
+        packet_type:  ``tcp`` or ``udp`` (iperf only).
+        file_size:    Transfer size in MB (scp only).
+        bitrate:      Target bitrate in Mbit/s; 0 = unlimited (iperf only).
+        test_type:    The :class:`TestType` that selects the analyzer.
+        client_host:  Host index that acts as the traffic sender.
+        server_host:  Host index that acts as the traffic receiver.
+        allow_fail:   When *True* a failure does not abort the run.
+        args:         Free-form extra arguments forwarded to the tool.
+        root_path:    Filesystem root for result artefacts.
     """
     name: str = field(default="")  # name of test tool
     test_name: str = field(default="")  # name of test
@@ -80,6 +97,32 @@ class TestResult:
 
 
 class ITestSuite(ABC):
+    """Base class for all test-suite implementations.
+
+    Subclasses must implement:
+
+    * :meth:`pre_process` — one-time setup before the measurement runs.
+    * :meth:`_run_test` — core measurement logic.
+    * :meth:`post_process` — cleanup / result rewriting after the measurement.
+
+    The concrete :meth:`run` method orchestrates the lifecycle:
+    ``pre_process → validate → _run_test → post_process``.
+
+    **Helper methods available to subclasses:**
+
+    * :meth:`resolve_receiver` — protocol-aware receiver IP + port resolution.
+    * :meth:`_default_client_server` — fills in default client/server host
+      indices when the YAML config does not specify them.
+
+    **Extension contract — adding a new test tool:**
+
+    1. Create ``src/testsuites/test_<tool>.py``.
+    2. Subclass :class:`ITestSuite`.
+    3. Register via the ``@register_test_suite`` decorator (see below).
+    4. Implement ``from_tool_dict()`` to own YAML-to-TestConfig mapping.
+    5. Implement ``_run_test()`` using ``resolve_receiver()`` for IP/port.
+    """
+
     def __init__(self, config: TestConfig) -> None:
         self.base_name = ""
         self.config = config
@@ -96,6 +139,10 @@ class ITestSuite(ABC):
         else:
             logging.error("Test type is not set. %s", self.config.test_type)
             self.result = TestResult(False, pattern="", record="")
+
+    # ------------------------------------------------------------------
+    # Public helpers shared by all subclasses
+    # ------------------------------------------------------------------
 
     def name(self) -> str:
         return self.config.name
@@ -165,6 +212,48 @@ class ITestSuite(ABC):
     def get_config(self) -> TestConfig:
         return self.config
 
+    # ------------------------------------------------------------------
+    # Shared helpers — receiver resolution and client/server defaulting
+    # ------------------------------------------------------------------
+
+    def resolve_receiver(self, network: 'INetwork',  # type: ignore
+                         proto_info: IProtoInfo) -> Tuple[str, int]:
+        """Resolve the receiver IP and port based on the protocol type.
+
+        Proxy-style protocols (e.g. KCP, QUIC) forward traffic through a
+        tunnel on the **client** host.  All other protocols (direct, TUN,
+        BATS …) send traffic towards the **server** host.
+
+        Returns:
+            ``(receiver_ip, receiver_port)``
+        """
+        hosts = network.get_hosts()
+        client = hosts[self.config.client_host]
+        server = hosts[self.config.server_host]
+        proto_name = proto_info.get_protocol_name().upper()
+
+        if proto_name in PROXY_PROTOCOLS:
+            tun_ip = proto_info.get_tun_ip(network, self.config.client_host)
+            receiver_ip = tun_ip if tun_ip else client.IP()
+        else:
+            tun_ip = proto_info.get_tun_ip(network, self.config.server_host)
+            receiver_ip = tun_ip if tun_ip else server.IP()
+
+        receiver_port = proto_info.get_forward_port()
+        return receiver_ip, receiver_port
+
+    def _default_client_server(self, network: 'INetwork') -> None:  # type: ignore
+        """Set ``client_host`` to 0 and ``server_host`` to last host when unset."""
+        if self.config.client_host is None or self.config.server_host is None:
+            hosts = network.get_hosts()
+            if hosts:
+                self.config.client_host = 0
+                self.config.server_host = len(hosts) - 1
+
+    # ------------------------------------------------------------------
+    # Private
+    # ------------------------------------------------------------------
+
     def __validate_host_config(self, network: 'INetwork') -> bool:  # type: ignore
         hosts = network.get_hosts()
         if hosts is None:
@@ -176,3 +265,101 @@ class ITestSuite(ABC):
                               self.config.client_host, self.config.server_host)
                 return False
         return True
+
+
+# ======================================================================
+# Test-suite registry — allows adding a new tool without editing runner.py
+# ======================================================================
+
+# Maps a tool name to its registration metadata.
+#   'class'          — the ITestSuite subclass
+#   'match'          — 'exact' (default) or 'contains'
+#   'from_tool_dict' — optional classmethod for YAML→TestConfig mapping
+_TEST_SUITE_REGISTRY: Dict[str, dict] = {}
+
+
+def register_test_suite(name: str, match: str = 'exact',
+                        test_type: Optional[TestType] = None):
+    """Class decorator that registers an ``ITestSuite`` subclass.
+
+    Args:
+        name:      The tool name used in YAML (e.g. ``'bats_iperf'``).
+        match:     ``'exact'`` requires ``tool['name'] == name``.
+                   ``'contains'`` requires ``name in tool['name']``.
+        test_type: If provided, this value is stored in the registry and
+                   later injected into ``tool['test_type']`` by
+                   :func:`load_test_suite_from_registry` (if the key is
+                   not already present) before calling ``from_tool_dict``.
+
+    Example::
+
+        @register_test_suite('ping', test_type=TestType.latency)
+        class PingTest(ITestSuite):
+            ...
+    """
+    def decorator(cls: Type['ITestSuite']):
+        _TEST_SUITE_REGISTRY[name] = {
+            'class': cls,
+            'match': match,
+            'test_type': test_type,
+        }
+        return cls
+    return decorator
+
+
+def get_test_suite_registry() -> Dict[str, dict]:
+    """Return a *read-only copy* of the current registry (for testing)."""
+    return dict(_TEST_SUITE_REGISTRY)
+
+
+def load_test_suite_from_registry(
+        tool: dict, test_name: str,
+        root_path: str = DEFAULT_ROOT_PATH) -> Optional['ITestSuite']:
+    """Look up *tool* in the registry and return an ``ITestSuite`` instance.
+
+    Resolution order:
+
+    1. Exact match on ``tool['name']``.
+    2. First ``'contains'`` match where ``key in tool['name']``.
+    3. Returns ``None`` (caller should fall back to ``RegularTest``).
+    """
+    name = tool['name']
+
+    def _try_construct(entry, cls):
+        """Attempt to construct a suite from a registry *entry*.
+
+        Returns the suite instance, or ``None`` if the class does not
+        provide ``from_tool_dict()``.  A warning is logged in the latter
+        case so that registration mistakes surface quickly instead of
+        being silently absorbed by the ``RegularTest`` fallback.
+        """
+        if not hasattr(cls, 'from_tool_dict'):
+            logging.warning(
+                "Registry entry '%s' (%s) has no from_tool_dict(); "
+                "falling back to RegularTest. Add a from_tool_dict() "
+                "classmethod to complete the registration.",
+                name, cls.__name__)
+            return None
+        # Inject registry-provided test_type into the tool dict if needed.
+        tool_with_type = tool
+        entry_test_type = entry.get('test_type')
+        if entry_test_type is not None and 'test_type' not in tool:
+            tool_with_type = dict(tool)
+            tool_with_type['test_type'] = entry_test_type
+        return cls.from_tool_dict(tool_with_type, test_name, root_path)
+
+    # 1. exact match
+    if name in _TEST_SUITE_REGISTRY:
+        entry = _TEST_SUITE_REGISTRY[name]
+        result = _try_construct(entry, entry['class'])
+        if result is not None:
+            return result
+
+    # 2. contains match
+    for key, entry in _TEST_SUITE_REGISTRY.items():
+        if entry['match'] == 'contains' and key in name:
+            result = _try_construct(entry, entry['class'])
+            if result is not None:
+                return result
+
+    return None

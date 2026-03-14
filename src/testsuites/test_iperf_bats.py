@@ -3,10 +3,39 @@ import time
 import os
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
-from .test import (ITestSuite)
+from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
 
 
+@register_test_suite('bats_iperf', test_type=TestType.throughput)
 class IperfBatsTest(ITestSuite):
+    """Throughput test using the BATS-specific ``bats_iperf`` binary.
+
+    Unlike :class:`IperfTest`, ``bats_iperf`` always sends to the server's
+    direct IP (protocol-level routing is handled by the BATS stack).
+    Protocol-specific arguments (e.g. ``-m 0`` for BTP) are obtained via
+    ``proto_info.get_protocol_args()``.
+    """
+
+    @classmethod
+    def from_tool_dict(cls, tool: dict, test_name: str,
+                       root_path: str) -> 'IperfBatsTest':
+        """Build an :class:`IperfBatsTest` from a YAML tool dictionary."""
+        config = TestConfig(
+            name=tool['name'],
+            test_name=test_name,
+            interval=tool.get('interval', 1.0),
+            interval_num=tool.get('interval_num', 10),
+            parallel=tool.get('parallel', 1),
+            packet_type=tool.get('packet_type', 'tcp'),
+            bitrate=tool.get('bitrate', 0),
+            client_host=tool.get('client_host'),
+            server_host=tool.get('server_host'),
+            args=tool.get('args', ''),
+            test_type=TestType.throughput,
+            root_path=root_path,
+        )
+        return cls(config)
+
     def post_process(self):
         return True
 
@@ -52,9 +81,7 @@ class IperfBatsTest(ITestSuite):
         hosts = network.get_hosts()
         if hosts is None:
             return False
-        if self.config.client_host is None or self.config.server_host is None:
-            self.config.client_host = 0
-            self.config.server_host = len(hosts) - 1
+        self._default_client_server(network)
         client = hosts[self.config.client_host]
         server = hosts[self.config.server_host]
         logging.info(

@@ -3,13 +3,15 @@ import logging
 
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
-from .test import (ITestSuite, TestConfig)
+from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
 
 
+@register_test_suite('rtt', test_type=TestType.rtt)
 class RTTTest(ITestSuite):
     """Measures the round trip time between two hosts in the network.
-       RTTTest uses tool `bin/tcp_message/tcp_endpoint` to measure the RTT.
-       Source of the tool is in https://github.com/n-hop/bats-documentation
+
+    RTTTest uses tool ``bin/tcp_message/tcp_endpoint`` to measure the RTT.
+    Source of the tool is in https://github.com/n-hop/bats-documentation
     """
 
     def __init__(self, config: TestConfig) -> None:
@@ -17,6 +19,25 @@ class RTTTest(ITestSuite):
         self.run_times = 0
         self.first_rtt_repeats = 15
         self.binary_path = "tcp_endpoint"
+
+    @classmethod
+    def from_tool_dict(cls, tool: dict, test_name: str,
+                       root_path: str) -> 'RTTTest':
+        """Build an :class:`RTTTest` from a YAML tool dictionary."""
+        config = TestConfig(
+            name=tool['name'],
+            test_name=test_name,
+            interval=tool.get('interval', 1.0),
+            interval_num=tool.get('interval_num', 10),
+            packet_count=tool['packet_count'],
+            packet_size=tool['packet_size'],
+            client_host=tool.get('client_host'),
+            server_host=tool.get('server_host'),
+            args=tool.get('args', ''),
+            test_type=TestType.rtt,
+            root_path=root_path,
+        )
+        return cls(config)
 
     def post_process(self):
         return True
@@ -46,27 +67,13 @@ class RTTTest(ITestSuite):
 
     def _run_test(self, network: INetwork, proto_info: IProtoInfo):
         hosts = network.get_hosts()
-
-        if self.config.client_host is None or self.config.server_host is None:
-            self.config.client_host = 0
-            self.config.server_host = len(hosts) - 1
+        self._default_client_server(network)
 
         client = hosts[self.config.client_host]
         server = hosts[self.config.server_host]
-        receiver_ip = None
-        if (proto_info.get_protocol_name().upper() == "KCP") or (proto_info.get_protocol_name().upper() == "QUIC"):
-            # kcp tun like a proxy, all traffic will be forwarded to the proxy server
-            tun_ip = proto_info.get_tun_ip(network, self.config.client_host)
-            if tun_ip == "":
-                tun_ip = client.IP()
-            receiver_ip = tun_ip
-        else:
-            tun_ip = proto_info.get_tun_ip(network, self.config.server_host)
-            if tun_ip == "":
-                tun_ip = server.IP()
-            receiver_ip = tun_ip
-        # KCP defines the forward port `10100`
-        receiver_port = proto_info.get_forward_port()
+
+        receiver_ip, receiver_port = self.resolve_receiver(network, proto_info)
+
         if receiver_port == 0:
             # if no forward port defined, use random port start from 30011
             # for port conflict, use different port for each test
