@@ -11,14 +11,6 @@ sys.modules.setdefault('mininet.util', MagicMock())
 from src.containernet.containernet_network import ContainerizedNetwork
 
 
-def _make_host_mock(name):
-    """Create a mock host that wraps a MagicMock containernet host."""
-    host = MagicMock()
-    host.name = name
-    host.cmd = MagicMock(return_value='')
-    return host
-
-
 class TestDisableBracketedPasteMode(unittest.TestCase):
     """Verify that _disable_bracketed_paste_mode sends the correct
     command to each host in the requested range."""
@@ -29,7 +21,6 @@ class TestDisableBracketedPasteMode(unittest.TestCase):
         net = object.__new__(ContainerizedNetwork)
         hosts = []
         for i in range(num_hosts):
-            mock_containernet_host = _make_host_mock(f'h{i}')
             adapter = MagicMock()
             adapter.cmd = MagicMock(return_value='')
             adapter.name.return_value = f'h{i}'
