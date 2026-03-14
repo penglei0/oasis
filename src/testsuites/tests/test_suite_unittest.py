@@ -146,6 +146,12 @@ class TestDefaultClientServer(unittest.TestCase):
         self.assertEqual(suite.config.server_host, 3)
 
     def test_defaults_applied_when_client_none(self):
+        """When *either* client or server is None, *both* are defaulted.
+
+        This matches the original if/elif logic in all four test suites that
+        contained the inline version of this helper (IperfTest, IperfBatsTest,
+        RTTTest, PingTest).
+        """
         suite = _make_dummy(self.tmp, client_host=None, server_host=2)
         hosts = [_StubHost(f'h{i}', f'10.0.0.{i+1}') for i in range(4)]
         network = _StubNetwork(hosts)

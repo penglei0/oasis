@@ -35,6 +35,7 @@ class IperfBatsTest(ITestSuite):
             root_path=root_path,
         )
         return cls(config)
+
     def post_process(self):
         return True
 
