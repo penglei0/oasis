@@ -2,10 +2,13 @@ import logging
 import time
 
 from core.config import NodeConfig
-from core.topology import ITopology
+from core.topology import ITopology, TopologyType
 from containernet.containernet_network import ContainerizedNetwork
 from routing.routing_factory import RoutingFactory, route_string_to_enum
 from interfaces.network_mgr import (INetworkManager, NetworkType)
+
+# Routing strategies that support mesh (non-chain) topologies.
+_mesh_compatible_routes = {'static_bfs', 'openr_route'}
 
 # alphabet table
 alphabet = ['h', 'i', 'j', 'k', 'l', 'm',
@@ -49,6 +52,15 @@ class NetworkManager(INetworkManager):
         """
         if net_num > len(alphabet):
             logging.error("Error: number of networks exceeds the limit.")
+            return False
+        # Mesh topologies require a routing strategy that understands
+        # arbitrary adjacency matrices (not just linear chains).
+        if topology.get_topology_type() == TopologyType.mesh \
+                and route not in _mesh_compatible_routes:
+            logging.error(
+                "Mesh topology requires a compatible route strategy "
+                "(%s), but '%s' was specified.",
+                ', '.join(sorted(_mesh_compatible_routes)), route)
             return False
         org_name_prefix = node_config.name_prefix
         cur_net_num = len(self.networks)
