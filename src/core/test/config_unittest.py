@@ -165,7 +165,7 @@ class TestLoadAllTests(unittest.TestCase):
             'interval': 1,
             'interval_num': 20,
             'client_host': 0,
-            'server_host': 1,
+            'server_host': 3,
         })
 
     def test_quic_multipath_3paths_topology_has_three_parallel_paths(self):
