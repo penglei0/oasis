@@ -17,6 +17,13 @@ class StaticRoutingBfs(IRoutingStrategy):
     def setup_routes(self, network: 'INetwork'):
         '''
         Setup the routing by ip route.
+        For each (src, dst) pair, route to every IP address of dst.
+        Each destination host may have multiple interfaces (and IPs) in
+        mesh topologies.  For a given dst IP that sits on the link between
+        dst and some neighbour *nbr*, we find the shortest path from src
+        to nbr and use its first hop as the gateway.  This ensures each
+        dst IP is reached through the interface that is topologically
+        closest to the corresponding link.
         '''
         hosts = network.get_hosts()
         self.pair_to_link_ip = network.get_link_table()
@@ -28,23 +35,42 @@ class StaticRoutingBfs(IRoutingStrategy):
             for dst in range(num_hosts):
                 if src == dst:
                     continue
-                path = self._bfs_shortest_path(adjacency, src, dst)
-                if not path or len(path) < 2:
-                    # No path or already at destination
-                    continue
-                next_hop = path[1]
-                # Find the IP of the next hop interface
-                gateway_ip = self.pair_to_link_ip.get(
-                    (hosts[src], hosts[next_hop]))
-                dst_ip = hosts[dst].IP()
-                if gateway_ip:
-                    self._add_ip_gateway(hosts[src], gateway_ip, dst_ip)
-                    logging.debug(
-                        "Static route: %s -> %s via %s (%s)",
-                        hosts[src].name(), hosts[dst].name(), hosts[next_hop].name(), gateway_ip)
-                else:
-                    logging.warning(
-                        f"No link IP for %s to %s", hosts[src].name(), hosts[next_hop].name())
+                # Iterate over every neighbour of dst to discover all of
+                # dst's interface IPs.
+                for nbr in range(num_hosts):
+                    if not adjacency[nbr][dst] or nbr == dst:
+                        continue
+                    # dst's IP on the nbr–dst link
+                    dst_ip = self.pair_to_link_ip.get(
+                        (hosts[nbr], hosts[dst]))
+                    if not dst_ip:
+                        continue
+                    if nbr == src:
+                        # src is directly connected to dst on this link;
+                        # the connected-subnet route already covers it.
+                        continue
+                    # Route toward nbr so the packet arrives at the
+                    # correct link where dst_ip resides.
+                    path = self._bfs_shortest_path(adjacency, src, nbr)
+                    if not path:
+                        continue
+                    if len(path) < 2:
+                        # src == nbr, but we excluded that above
+                        continue
+                    next_hop = path[1]
+                    gateway_ip = self.pair_to_link_ip.get(
+                        (hosts[src], hosts[next_hop]))
+                    if gateway_ip:
+                        self._add_ip_gateway(
+                            hosts[src], gateway_ip, dst_ip)
+                        logging.debug(
+                            "Static route: %s -> %s (ip %s) via %s (%s)",
+                            hosts[src].name(), hosts[dst].name(),
+                            dst_ip, hosts[next_hop].name(), gateway_ip)
+                    else:
+                        logging.warning(
+                            "No link IP for %s to %s",
+                            hosts[src].name(), hosts[next_hop].name())
 
     @staticmethod
     def _add_ip_gateway(host, gateway_ip, dst_ip):
