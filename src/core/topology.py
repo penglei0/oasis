@@ -66,6 +66,10 @@ class TopologyConfig:
 
 
 class ITopology(ABC):
+    # Extra gap so the left/right vertical link labels do not crowd each other.
+    RECTANGLE_INNER_PADDING = 8
+    RECTANGLE_NODE_ORDER = [0, 1, 2, 3]
+
     def __init__(self, base_path: str, top: TopologyConfig, init_all_mat: bool = True):
         self.conf_base_path = base_path
         self.all_mats = {}
@@ -265,7 +269,7 @@ class ITopology(ABC):
         horizontal_width = max(
             len(self._link_label(top_left, top_right)),
             len(self._link_label(bottom_left, bottom_right))
-        ) + 8
+        ) + self.RECTANGLE_INNER_PADDING
         left_vertical = self._link_label(top_left, bottom_left).ljust(
             vertical_width)
         right_vertical = self._link_label(top_right, bottom_right).ljust(
@@ -329,9 +333,9 @@ class ITopology(ABC):
             if node in visited:
                 continue
             visited.add(node)
-            for neighbour, connected in enumerate(adj_matrix[node]):
-                if connected and neighbour not in visited:
-                    stack.append(neighbour)
+            for neighbor, connected in enumerate(adj_matrix[node]):
+                if connected and neighbor not in visited:
+                    stack.append(neighbor)
         return len(visited) == len(adj_matrix)
 
     def _is_chain(self, adj_matrix):
@@ -348,8 +352,10 @@ class ITopology(ABC):
         if len(adj_matrix) < 3 or not self._is_connected(adj_matrix):
             return False
         degrees = self._degrees(adj_matrix)
-        return degrees.count(len(adj_matrix) - 1) == 1 and \
+        return (
+            degrees.count(len(adj_matrix) - 1) == 1 and
             degrees.count(1) == len(adj_matrix) - 1
+        )
 
     def _is_diamond(self, adj_matrix):
         return self._diamond_groups(adj_matrix) is not None
@@ -362,13 +368,13 @@ class ITopology(ABC):
         degrees = self._degrees(adj_matrix)
         if any(degree != 2 for degree in degrees):
             return None
-        neighbour_sets = {}
+        neighbor_sets = {}
         for node, row in enumerate(adj_matrix):
             key = tuple(index for index, connected in enumerate(row) if connected)
-            neighbour_sets.setdefault(key, []).append(node)
-        if len(neighbour_sets) != 2:
+            neighbor_sets.setdefault(key, []).append(node)
+        if len(neighbor_sets) != 2:
             return None
-        grouped_nodes = [sorted(nodes) for nodes in neighbour_sets.values()]
+        grouped_nodes = [sorted(nodes) for nodes in neighbor_sets.values()]
         if any(len(nodes) != 2 for nodes in grouped_nodes):
             return None
         grouped_nodes.sort(key=lambda nodes: min(nodes))
@@ -383,8 +389,16 @@ class ITopology(ABC):
         degrees = self._degrees(adj_matrix)
         if any(degree != 2 for degree in degrees):
             return None
-        cycle = [0, 1, 2, 3]
-        expected_edges = [(0, 1), (1, 2), (2, 3), (3, 0)]
+        # Rectangle layouts are expected to number hosts around the perimeter
+        # in display order (h0-h1-h2-h3). Diamond layouts use a different
+        # numbering pattern and fall through to _diamond_groups().
+        cycle = self.RECTANGLE_NODE_ORDER
+        expected_edges = [
+            (cycle[0], cycle[1]),
+            (cycle[1], cycle[2]),
+            (cycle[2], cycle[3]),
+            (cycle[3], cycle[0]),
+        ]
         if all(adj_matrix[left][right] for left, right in expected_edges):
             return cycle
         return None
