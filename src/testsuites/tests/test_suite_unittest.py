@@ -376,7 +376,7 @@ class TestFromToolDict(unittest.TestCase):
         self.assertEqual(suite.config.file_size, 1)
 
     def test_sshping_from_tool_dict(self):
-        tool = {'name': 'sshping_test', 'client_host': 0, 'server_host': 1}
+        tool = {'name': 'sshping', 'client_host': 0, 'server_host': 1}
         suite = SSHPingTest.from_tool_dict(tool, 'test1', self.root_path)
         self.assertIsInstance(suite, SSHPingTest)
         self.assertEqual(suite.config.test_type, TestType.sshping)
