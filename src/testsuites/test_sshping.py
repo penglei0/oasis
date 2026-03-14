@@ -46,10 +46,11 @@ class SSHPingTest(ITestSuite):
         interval = self.config.interval or 1
         return int(interval_num * interval) + 1
 
-    def _wait_and_kill(self, host):
-        """Wait for sshping to finish, then forcibly stop it."""
+    def _wait_and_kill(self, hosts_to_kill):
+        """Wait for sshping to finish, then forcibly stop it on all given hosts."""
         time.sleep(self._max_wait_time())
-        host.cmd(f'pkill -9 -f {self.binary_path}')
+        for h in hosts_to_kill:
+            h.cmd(f'pkill -9 -f {self.binary_path}')
 
     def _run_test(self, network: INetwork, proto_info: IProtoInfo):
         hosts = network.get_hosts()
@@ -72,7 +73,7 @@ class SSHPingTest(ITestSuite):
                 hosts[i].cmd(
                     f'{self.binary_path} -i /root/.ssh/id_rsa'
                     f' -H root@{receiver_ip} > {self.result.record} &')
-            self._wait_and_kill(hosts[1])
+            self._wait_and_kill(hosts[1:])
             return True
         # Run sshping test from client to server
         receiver_ip, _ = self.resolve_receiver(network, proto_info)
@@ -85,5 +86,5 @@ class SSHPingTest(ITestSuite):
         client.cmd(
             f'{self.binary_path} -i /root/.ssh/id_rsa'
             f' -H root@{receiver_ip} > {self.result.record} &')
-        self._wait_and_kill(client)
+        self._wait_and_kill([client])
         return True
