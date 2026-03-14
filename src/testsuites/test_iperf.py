@@ -2,10 +2,19 @@ import logging
 import time
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
-from .test import (ITestSuite, TestConfig)
+from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
 
 
+@register_test_suite('iperf', match='contains', test_type=TestType.throughput)
 class IperfTest(ITestSuite):
+    """Throughput test using ``iperf3``.
+
+    Supports TCP and UDP modes, parallel streams, and custom bitrate.
+    Receiver IP/port is resolved via :meth:`resolve_receiver` so that
+    proxy protocols (KCP, QUIC) and tunnel protocols (BTP, BRTP) are
+    handled transparently.
+    """
+
     def __init__(self, config: TestConfig) -> None:
         super().__init__(config)
         self.is_udp_mode = False
@@ -16,6 +25,26 @@ class IperfTest(ITestSuite):
                 self.config.bitrate = 10
             logging.info("IperfTest is in UDP mode, bitrate: %d Mbps",
                          self.config.bitrate)
+
+    @classmethod
+    def from_tool_dict(cls, tool: dict, test_name: str,
+                       root_path: str) -> 'IperfTest':
+        """Build an :class:`IperfTest` from a YAML tool dictionary."""
+        config = TestConfig(
+            name=tool['name'],
+            test_name=test_name,
+            interval=tool.get('interval', 1.0),
+            interval_num=tool.get('interval_num', 10),
+            parallel=tool.get('parallel', 1),
+            packet_type=tool.get('packet_type', 'tcp'),
+            bitrate=tool.get('bitrate', 0),
+            client_host=tool.get('client_host'),
+            server_host=tool.get('server_host'),
+            args=tool.get('args', ''),
+            test_type=TestType.throughput,
+            root_path=root_path,
+        )
+        return cls(config)
 
     def post_process(self):
         return True
@@ -57,35 +86,20 @@ class IperfTest(ITestSuite):
         hosts = network.get_hosts()
         if hosts is None:
             return False
-        if self.config.client_host is None or self.config.server_host is None:
-            self.config.client_host = 0
-            self.config.server_host = len(hosts) - 1
+        self._default_client_server(network)
 
         client = hosts[self.config.client_host]
         server = hosts[self.config.server_host]
-        receiver_ip = None
+
+        receiver_ip, receiver_port = self.resolve_receiver(network, proto_info)
+
+        # IperfTest-specific: BTP/BRTP port-forwarding override
         upper_proto_name = proto_info.get_protocol_name().upper()
-        if upper_proto_name in ["KCP", "QUIC"]:
-            # kcp tun like a proxy, all traffic will be forwarded to the proxy server
-            tun_ip = proto_info.get_tun_ip(network, self.config.client_host)
-            if tun_ip == "":
-                tun_ip = client.IP()
-            receiver_ip = tun_ip
-        else:
-            if upper_proto_name in ["BTP", "BRTP"] and self.is_port_forward:
-                # iperf3 default port 5201 is set as udp port-forwarding port in h0.
-                # send data to h0:5201, then forward to the last node in the chain.
-                receiver_ip = client.IP()
-                logging.debug(
-                    "Test iperf3 with port forwarding from %s:5201 to %s", receiver_ip, server.IP())
-            else:
-                tun_ip = proto_info.get_tun_ip(
-                    network, self.config.server_host)
-                if tun_ip == "":
-                    tun_ip = server.IP()
-                receiver_ip = tun_ip
-        # only kcp has forward port `10100`
-        receiver_port = proto_info.get_forward_port()
+        if upper_proto_name in ["BTP", "BRTP"] and self.is_port_forward:
+            receiver_ip = client.IP()
+            logging.debug(
+                "Test iperf3 with port forwarding from %s:5201 to %s", receiver_ip, server.IP())
+
         if receiver_port == 0:
             # if no forward port defined, use iperf3 default port 5201
             receiver_port = 5201

@@ -6,9 +6,14 @@ from .test import (ITestSuite, TestConfig, TestType)
 
 
 class RegularTest(ITestSuite):
-    """RegularTest is used to represent a regular test tool which can be run with a pattern of
-    command line arguments, such as `./binary %s other_args`; `%s` is used to indicate the IP address
-    of the target.
+    """Fallback test tool for arbitrary binaries.
+
+    ``RegularTest`` runs a user-supplied binary with configurable arguments.
+    The placeholder ``%s`` in *args* is replaced with the target IP.  The
+    process is killed after ``interval × interval_num + 1`` seconds.
+
+    This class is **not** registered in the test-suite registry — it serves
+    as the default when no registered tool matches the YAML tool name.
     """
 
     def __init__(self, config: TestConfig) -> None:
@@ -18,6 +23,22 @@ class RegularTest(ITestSuite):
             self.config.test_type = TestType.sshping
         else:
             self.config.test_type = TestType.throughput
+
+    @classmethod
+    def from_tool_dict(cls, tool: dict, test_name: str,
+                       root_path: str) -> 'RegularTest':
+        """Build a :class:`RegularTest` from a YAML tool dictionary."""
+        config = TestConfig(
+            name=tool['name'],
+            test_name=test_name,
+            interval=tool.get('interval', 1.0),
+            interval_num=tool.get('interval_num', 10),
+            client_host=tool.get('client_host'),
+            server_host=tool.get('server_host'),
+            args=tool.get('args', ''),
+            root_path=root_path,
+        )
+        return cls(config)
 
     def post_process(self):
         return True
@@ -56,7 +77,6 @@ class RegularTest(ITestSuite):
             logging.error("No host found in the network")
             return False
         hosts_num = len(hosts)
-        receiver_ip = None
         if self.config.client_host is None or self.config.server_host is None:
             for i in range(hosts_num):
                 if i == 0:
@@ -75,17 +95,14 @@ class RegularTest(ITestSuite):
                     f'{self.binary_path} {formatted_args} > {self.result.record} &')
             self._wait_timeout_or_finish(hosts)
             return True
+        # Single-pair mode: use resolve_receiver for tunnel/proxy awareness
+        receiver_ip, _ = self.resolve_receiver(network, proto_info)
         logging.info(
             f"############### Oasis RegularTest %s from "
             "%s to %s ###############",
             self.config.name,
             hosts[self.config.client_host].name(),
             hosts[self.config.server_host].name())
-        tun_ip = proto_info.get_tun_ip(
-            network, self.config.server_host)
-        if tun_ip == "":
-            tun_ip = hosts[self.config.server_host].IP()
-        receiver_ip = tun_ip
         formatted_args = self._get_format_args(receiver_ip)
         logging.info("formatted_args: %s", formatted_args)
         hosts[self.config.client_host].cmd(

@@ -10,12 +10,15 @@ from interfaces.network_mgr import INetworkManager
 from interfaces.network import INetwork
 from core.topology import ITopology
 from testsuites.test import (
-    ITestSuite, TestType, TestConfig, test_type_str_mapping)
-from testsuites.test_iperf import IperfTest
-from testsuites.test_iperf_bats import IperfBatsTest
-from testsuites.test_ping import PingTest
-from testsuites.test_rtt import RTTTest
-from testsuites.test_scp import ScpTest
+    ITestSuite, TestType, test_type_str_mapping,
+    load_test_suite_from_registry)
+# The following imports trigger the @register_test_suite decorators:
+import testsuites.test_iperf  # noqa: F401  # pylint: disable=unused-import
+import testsuites.test_iperf_bats  # noqa: F401  # pylint: disable=unused-import
+import testsuites.test_ping  # noqa: F401  # pylint: disable=unused-import
+import testsuites.test_rtt  # noqa: F401  # pylint: disable=unused-import
+import testsuites.test_scp  # noqa: F401  # pylint: disable=unused-import
+import testsuites.test_sshping  # noqa: F401  # pylint: disable=unused-import
 from testsuites.test_regular import RegularTest
 from testsuites.test_competition import (
     FlowCompetitionTest, FlowCompetitionConfig, FlowParameter)
@@ -94,36 +97,18 @@ def diagnostic_test_results(test_results, top_des):
 
 
 def load_test_tool(tool, test_name, root_path=DEFAULT_ROOT_PATH) -> ITestSuite:
-    test_conf = TestConfig(
-        name=tool['name'],
-        test_name=test_name,
-        interval=tool['interval'] if 'interval' in tool else 1.0,
-        interval_num=tool['interval_num'] if 'interval_num' in tool else 10,
-        parallel=tool['parallel'] if 'parallel' in tool else 1,
-        packet_type=tool['packet_type'] if 'packet_type' in tool else 'tcp',
-        bitrate=tool['bitrate'] if 'bitrate' in tool else 0,
-        client_host=tool['client_host'], server_host=tool['server_host'],
-        args=tool['args'] if 'args' in tool else '',
-        root_path=root_path)
-    if tool['name'] == 'bats_iperf':
-        test_conf.test_type = TestType.throughput
-        return IperfBatsTest(test_conf)
-    if 'iperf' in tool['name']:
-        test_conf.test_type = TestType.throughput
-        return IperfTest(test_conf)
-    if tool['name'] == 'ping':
-        test_conf.test_type = TestType.latency
-        return PingTest(test_conf)
-    if tool['name'] == 'rtt':
-        test_conf.packet_count = tool['packet_count']
-        test_conf.packet_size = tool['packet_size']
-        test_conf.test_type = TestType.rtt
-        return RTTTest(test_conf)
-    if tool['name'] == 'scp':
-        test_conf.file_size = tool['file_size'] if 'file_size' in tool else 1
-        test_conf.test_type = TestType.scp
-        return ScpTest(test_conf)
-    return RegularTest(test_conf)
+    """Create an ``ITestSuite`` instance from a YAML tool dictionary.
+
+    Resolution is delegated to the :func:`load_test_suite_from_registry`
+    lookup.  If no registered test suite matches, :class:`RegularTest` is
+    used as the default fallback.
+    """
+    # Try the registry first (exact match, then 'contains' match)
+    suite = load_test_suite_from_registry(tool, test_name, root_path)
+    if suite is not None:
+        return suite
+    # Fallback: generic RegularTest
+    return RegularTest.from_tool_dict(tool, test_name, root_path)
 
 
 def load_predefined_protocols(config_base_path):
