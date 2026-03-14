@@ -9,8 +9,8 @@ from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
 class PingTest(ITestSuite):
     """ICMP ping latency test.
 
-    When ``client_host`` / ``server_host`` are not specified, pings from
-    every host (except host 0) *to* host 0.
+    When ``client_host`` / ``server_host`` are not specified, each host
+    (except host 0) pings its own IP address.
     """
 
     @classmethod
