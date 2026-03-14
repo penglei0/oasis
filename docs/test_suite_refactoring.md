@@ -455,12 +455,12 @@ This inverts the dependency: instead of the test suite knowing about protocol in
 
 The following order minimizes risk by starting with non-breaking additions:
 
-1. **Extract `resolve_receiver()` helper** into `ITestSuite` — update existing tests to use it. This is a pure refactor with no behavioral change.
-2. **Extract `_default_client_server()` helper** — same approach.
-3. **Introduce `TEST_SUITE_REGISTRY`** and `from_tool_dict()` — keep `load_test_tool()` as the single consumer; migrate tools one by one.
-4. **Add `is_proxy_protocol()` / `resolve_receiver_ip()` to `IProtoInfo`** — default implementation preserves current behavior; protocols override as needed.
-5. **Add `analyzer_name()` to `ITestSuite`** — update `diagnostic_test_results()` to use it.
-6. **Add unit tests** for the registry, receiver resolution, and config validation.
+1. ✅ **Extract `resolve_receiver()` helper** into `ITestSuite` — update existing tests to use it. This is a pure refactor with no behavioral change.
+2. ✅ **Extract `_default_client_server()` helper** — same approach.
+3. ✅ **Introduce `TEST_SUITE_REGISTRY`** and `from_tool_dict()` — keep `load_test_tool()` as the single consumer; migrate tools one by one.
+4. **Add `is_proxy_protocol()` / `resolve_receiver_ip()` to `IProtoInfo`** — default implementation preserves current behavior; protocols override as needed.  *(Deferred — `PROXY_PROTOCOLS` constant serves as the interim solution.)*
+5. **Add `analyzer_name()` to `ITestSuite`** — update `diagnostic_test_results()` to use it. *(Deferred.)*
+6. ✅ **Add unit tests** for the registry, receiver resolution, and config validation.
 
 Each step is independently mergeable and testable.
 
@@ -479,3 +479,47 @@ With the proposed changes, adding a `quic_perf` tool would require:
 3. No changes to `runner.py`, `test.py`, or any other existing test suite.
 
 This is the extension contract we are aiming for: **one new file, zero modifications to existing files**.
+
+---
+
+## 9. Implementation Status
+
+The following changes have been implemented and merged:
+
+### 9.1 Changes to `src/testsuites/test.py`
+
+- Added `PROXY_PROTOCOLS` frozenset for centralized proxy-protocol detection.
+- Added `resolve_receiver(network, proto_info) -> (ip, port)` to `ITestSuite`.
+- Added `_default_client_server(network)` to `ITestSuite`.
+- Added `@register_test_suite` decorator and `_TEST_SUITE_REGISTRY`.
+- Added `get_test_suite_registry()` and `load_test_suite_from_registry()`.
+- Improved docstrings for `TestConfig`, `ITestSuite`, and extension contract.
+
+### 9.2 Changes to test suite implementations
+
+| File | Changes |
+|---|---|
+| `test_iperf.py` | `@register_test_suite('iperf', match='contains')`, `from_tool_dict()`, uses `resolve_receiver()` and `_default_client_server()` |
+| `test_iperf_bats.py` | `@register_test_suite('bats_iperf')`, `from_tool_dict()`, uses `_default_client_server()` |
+| `test_rtt.py` | `@register_test_suite('rtt')`, `from_tool_dict()`, uses `resolve_receiver()` and `_default_client_server()` |
+| `test_ping.py` | `@register_test_suite('ping')`, `from_tool_dict()` |
+| `test_scp.py` | `@register_test_suite('scp')`, `from_tool_dict()`, uses `resolve_receiver()` |
+| `test_sshping.py` | `@register_test_suite('sshping_test')`, `from_tool_dict()`, uses `resolve_receiver()` |
+| `test_regular.py` | `from_tool_dict()`, uses `resolve_receiver()` (not registered — serves as fallback) |
+
+### 9.3 Changes to `src/core/runner.py`
+
+- `load_test_tool()` now delegates to `load_test_suite_from_registry()`.
+- Removed the `if`/`elif` cascade.
+- Falls back to `RegularTest.from_tool_dict()` for unknown tools.
+
+### 9.4 New tests
+
+- `src/testsuites/tests/test_suite_unittest.py` — 39 unit tests covering:
+  - `PROXY_PROTOCOLS` constant.
+  - `_default_client_server()` with various host configurations.
+  - `resolve_receiver()` for TCP, KCP, QUIC, BTP protocols.
+  - Registry contents and match types.
+  - `load_test_suite_from_registry()` exact / contains / unknown dispatch.
+  - `from_tool_dict()` for all 8 test suite classes.
+  - `load_test_tool()` integration (skipped when matplotlib unavailable).
