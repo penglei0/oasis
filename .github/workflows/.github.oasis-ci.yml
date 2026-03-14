@@ -100,6 +100,10 @@ jobs:
         working-directory: ${{github.workspace}}/
         run: |
           ./src/tools/run_test.sh protocol-ci-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --host=${{ matrix.host.name }}
+      - name: Performance matrix
+        working-directory: ${{github.workspace}}/
+        run: |
+          ./src/tools/run_test.sh bats-protocol-rtt-loss-test.yaml --cleanup --no-privilege --containernet=${{ matrix.containernet.name }} --host=${{ matrix.host.name }}
       - name: Upload test logs
         uses: actions/upload-artifact@v6
         continue-on-error: true
