@@ -244,10 +244,16 @@ print_message "Processing test results with privilege: '$has_root_privilege' '$i
 # e.g., extract data from log files, generate index.html, etc.
 if [ -f $tool_extract_data_script ]; then
     ${has_root_privilege}python3 -u $tool_extract_data_script "$test_result_dir"
+    print_message "Data extraction from test results completed." pass
+else
+    print_message "Tool for extracting data from test results not found, skipping data extraction."
 fi
 
 if [ -f $tool_generate_index_script ]; then
     ${has_root_privilege}python3 -u $tool_generate_index_script "$test_result_dir"
+    print_message "Data index generation from test results completed." pass
+else
+    print_message "Tool for generating index from test results not found, skipping index generation."
 fi
 
 exit 0
