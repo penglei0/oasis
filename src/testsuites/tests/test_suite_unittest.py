@@ -327,7 +327,7 @@ class TestLoadTestSuiteFromRegistry(unittest.TestCase):
         }
         try:
             tool = {'name': '_incomplete', 'client_host': 0, 'server_host': 1}
-            with self.assertLogs('root', level='WARNING') as cm:
+            with self.assertLogs(level='WARNING') as cm:
                 suite = load_test_suite_from_registry(
                     tool, 'test1', self.root_path)
             self.assertIsNone(suite)
