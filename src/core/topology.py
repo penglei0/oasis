@@ -86,6 +86,21 @@ class ITopology(ABC):
     def description(self) -> str:
         pass
 
+    def ascii_art(self) -> str:
+        """Render the current topology using a small ASCII diagram."""
+        adj_matrix = self.get_matrix(MatrixType.ADJACENCY_MATRIX)
+        if adj_matrix is None:
+            return ""
+        if self._is_chain(adj_matrix):
+            return self._render_chain(adj_matrix)
+        if self._is_star(adj_matrix):
+            return self._render_star(adj_matrix)
+        if self._is_diamond(adj_matrix):
+            return self._render_diamond(adj_matrix)
+        if self._is_rectangle(adj_matrix):
+            return self._render_rectangle(adj_matrix)
+        return self._render_links(adj_matrix)
+
     def get_next_top(self):
         if not self.is_compound():
             logging.error("get_next_top() called on a non-compound topology.")
@@ -157,3 +172,241 @@ class ITopology(ABC):
                 continue
             logging.info(f"Matrix data: %s", mat_desc['matrix_data'])
             self.all_mats[mat_desc['matrix_type']] = mat_desc['matrix_data']
+
+    def _render_chain(self, adj_matrix):
+        chain_nodes = self._chain_order(adj_matrix)
+        if not chain_nodes:
+            return self._render_links(adj_matrix)
+        rendered = [self._host_name(chain_nodes[0])]
+        for left_node, right_node in zip(chain_nodes, chain_nodes[1:]):
+            rendered.append(
+                f"<----{self._link_label(left_node, right_node)}----->")
+            rendered.append(self._host_name(right_node))
+        return " ".join(rendered)
+
+    def _render_star(self, adj_matrix):
+        degrees = self._degrees(adj_matrix)
+        center = next(
+            (index for index, degree in enumerate(degrees)
+             if degree == len(adj_matrix) - 1),
+            None
+        )
+        if center is None:
+            return self._render_links(adj_matrix)
+        leaves = [index for index, connected in enumerate(adj_matrix[center])
+                  if connected]
+        if not leaves:
+            return self._host_name(center)
+
+        lines = []
+        top_leaf = leaves[0]
+        lines.extend([
+            f"                {self._host_name(top_leaf)}",
+            "                |",
+            f"       {self._link_label(center, top_leaf)}",
+            "                |"
+        ])
+
+        remaining_leaves = leaves[1:]
+        if remaining_leaves:
+            left_leaf = remaining_leaves[0]
+            center_line = (
+                f"{self._host_name(left_leaf)} <----"
+                f"{self._link_label(left_leaf, center)}-----> "
+                f"{self._host_name(center)}"
+            )
+            if len(remaining_leaves) > 1:
+                right_leaf = remaining_leaves[1]
+                center_line += (
+                    f" <----{self._link_label(center, right_leaf)}-----> "
+                    f"{self._host_name(right_leaf)}"
+                )
+            lines.append(center_line)
+            for extra_leaf in remaining_leaves[2:]:
+                lines.extend([
+                    "                |",
+                    f"       {self._link_label(center, extra_leaf)}",
+                    "                |",
+                    f"                {self._host_name(extra_leaf)}"
+                ])
+        else:
+            lines.append(f"                {self._host_name(center)}")
+        return "\n".join(lines)
+
+    def _render_diamond(self, adj_matrix):
+        groups = self._diamond_groups(adj_matrix)
+        if groups is None:
+            return self._render_links(adj_matrix)
+        endpoints, middle_nodes = groups
+        left_node = min(endpoints)
+        right_node = max(endpoints)
+        top_node = min(middle_nodes)
+        bottom_node = max(middle_nodes)
+        return "\n".join([
+            f"             {self._host_name(top_node)}",
+            f"      {self._link_label(left_node, top_node)}    "
+            f"{self._link_label(top_node, right_node)}",
+            f"{self._host_name(left_node)}                           "
+            f"{self._host_name(right_node)}",
+            f"      {self._link_label(left_node, bottom_node)}    "
+            f"{self._link_label(bottom_node, right_node)}",
+            f"             {self._host_name(bottom_node)}"
+        ])
+
+    def _render_rectangle(self, adj_matrix):
+        cycle = self._rectangle_cycle(adj_matrix)
+        if cycle is None:
+            return self._render_links(adj_matrix)
+        top_left, top_right, bottom_right, bottom_left = cycle
+        vertical_width = max(
+            len(self._link_label(top_left, bottom_left)),
+            len(self._link_label(top_right, bottom_right))
+        ) + 2
+        horizontal_width = max(
+            len(self._link_label(top_left, top_right)),
+            len(self._link_label(bottom_left, bottom_right))
+        ) + 8
+        left_vertical = self._link_label(top_left, bottom_left).ljust(
+            vertical_width)
+        right_vertical = self._link_label(top_right, bottom_right).ljust(
+            vertical_width)
+        return "\n".join([
+            f"{self._host_name(top_left)} <----"
+            f"{self._link_label(top_left, top_right)}-----> "
+            f"{self._host_name(top_right)}",
+            f"| {left_vertical}{' ' * horizontal_width}| {right_vertical}|",
+            f"{self._host_name(bottom_left)} <----"
+            f"{self._link_label(bottom_left, bottom_right)}-----> "
+            f"{self._host_name(bottom_right)}"
+        ])
+
+    def _render_links(self, adj_matrix):
+        rendered_links = []
+        for row_index in range(len(adj_matrix)):
+            for col_index in range(row_index + 1, len(adj_matrix)):
+                if adj_matrix[row_index][col_index]:
+                    rendered_links.append(
+                        f"{self._host_name(row_index)} <----"
+                        f"{self._link_label(row_index, col_index)}-----> "
+                        f"{self._host_name(col_index)}"
+                    )
+        return "\n".join(rendered_links)
+
+    @staticmethod
+    def _host_name(host_index):
+        return f"h{host_index}"
+
+    def _link_label(self, host1, host2):
+        return (
+            f"({self._matrix_value(MatrixType.BW_MATRIX, host1, host2)},"
+            f"{self._matrix_value(MatrixType.LATENCY_MATRIX, host1, host2)}ms,"
+            f"{self._matrix_value(MatrixType.LOSS_MATRIX, host1, host2)}%)"
+        )
+
+    def _matrix_value(self, matrix_type, row, col):
+        matrix = self.get_matrix(matrix_type)
+        if matrix is None:
+            return "?"
+        return self._format_value(matrix[row][col])
+
+    @staticmethod
+    def _format_value(value):
+        if isinstance(value, float):
+            return format(value, 'g')
+        return str(value)
+
+    @staticmethod
+    def _degrees(adj_matrix):
+        return [sum(row) for row in adj_matrix]
+
+    def _is_connected(self, adj_matrix):
+        if not adj_matrix:
+            return False
+        visited = set()
+        stack = [0]
+        while stack:
+            node = stack.pop()
+            if node in visited:
+                continue
+            visited.add(node)
+            for neighbour, connected in enumerate(adj_matrix[node]):
+                if connected and neighbour not in visited:
+                    stack.append(neighbour)
+        return len(visited) == len(adj_matrix)
+
+    def _is_chain(self, adj_matrix):
+        if not self._is_connected(adj_matrix):
+            return False
+        degrees = self._degrees(adj_matrix)
+        if len(adj_matrix) == 1:
+            return True
+        return degrees.count(1) == 2 and all(
+            degree in (1, 2) for degree in degrees
+        )
+
+    def _is_star(self, adj_matrix):
+        if len(adj_matrix) < 3 or not self._is_connected(adj_matrix):
+            return False
+        degrees = self._degrees(adj_matrix)
+        return degrees.count(len(adj_matrix) - 1) == 1 and \
+            degrees.count(1) == len(adj_matrix) - 1
+
+    def _is_diamond(self, adj_matrix):
+        return self._diamond_groups(adj_matrix) is not None
+
+    def _diamond_groups(self, adj_matrix):
+        if len(adj_matrix) != 4 or not self._is_connected(adj_matrix):
+            return None
+        if self._rectangle_cycle(adj_matrix) is not None:
+            return None
+        degrees = self._degrees(adj_matrix)
+        if any(degree != 2 for degree in degrees):
+            return None
+        neighbour_sets = {}
+        for node, row in enumerate(adj_matrix):
+            key = tuple(index for index, connected in enumerate(row) if connected)
+            neighbour_sets.setdefault(key, []).append(node)
+        if len(neighbour_sets) != 2:
+            return None
+        grouped_nodes = [sorted(nodes) for nodes in neighbour_sets.values()]
+        if any(len(nodes) != 2 for nodes in grouped_nodes):
+            return None
+        grouped_nodes.sort(key=lambda nodes: min(nodes))
+        return grouped_nodes[0], grouped_nodes[1]
+
+    def _is_rectangle(self, adj_matrix):
+        return self._rectangle_cycle(adj_matrix) is not None
+
+    def _rectangle_cycle(self, adj_matrix):
+        if len(adj_matrix) != 4 or not self._is_connected(adj_matrix):
+            return None
+        degrees = self._degrees(adj_matrix)
+        if any(degree != 2 for degree in degrees):
+            return None
+        cycle = [0, 1, 2, 3]
+        expected_edges = [(0, 1), (1, 2), (2, 3), (3, 0)]
+        if all(adj_matrix[left][right] for left, right in expected_edges):
+            return cycle
+        return None
+
+    def _chain_order(self, adj_matrix):
+        if len(adj_matrix) == 1:
+            return [0]
+        endpoints = [index for index, degree in enumerate(self._degrees(adj_matrix))
+                     if degree == 1]
+        if len(endpoints) != 2:
+            return []
+        order = [min(endpoints)]
+        previous = None
+        while len(order) < len(adj_matrix):
+            current = order[-1]
+            next_nodes = [
+                index for index, connected in enumerate(adj_matrix[current])
+                if connected and index != previous
+            ]
+            if not next_nodes:
+                break
+            next_node = next_nodes[0]
+            order.append(next_node)
+            previous = current
+        return order
