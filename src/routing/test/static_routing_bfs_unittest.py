@@ -155,10 +155,9 @@ class TestStaticRoutingBfsChain(unittest.TestCase):
         # h0's IP on h0-h1 link → via h1
         self.assertIn(('10.0.0.1', '10.0.1.1'), routes)
 
-    def test_h1_has_route_to_h0_other_ip(self):
-        """h1 should have routes to h0's only IP on the h0-h1 link.
-        Since h0 is directly connected to h1, the connected-subnet route
-        covers it, so no explicit route is needed."""
+    def test_h1_has_no_explicit_route_for_directly_connected_ip(self):
+        """h0's only IP on the h0-h1 link is on a directly connected subnet
+        of h1, so no explicit route should be added."""
         StaticRoutingBfs().setup_routes(self.network)
         routes = self._routes_on(1)
         dst_ips = [dst for dst, _ in routes]
