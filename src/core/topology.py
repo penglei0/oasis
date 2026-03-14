@@ -379,7 +379,7 @@ class ITopology(ABC):
         grouped_nodes = [sorted(nodes) for nodes in neighbor_sets.values()]
         if any(len(nodes) != 2 for nodes in grouped_nodes):
             return None
-        grouped_nodes.sort(key=lambda nodes: min(nodes))
+        grouped_nodes.sort(key=min)
         return grouped_nodes[0], grouped_nodes[1]
 
     def _is_rectangle(self, adj_matrix):

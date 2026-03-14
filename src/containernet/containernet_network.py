@@ -244,7 +244,22 @@ class ContainerizedNetwork (INetwork):
             )
         self.hosts = [ContainernetHostAdapter(host)
                       for host in self.containernet.hosts]
+        self._disable_bracketed_paste_mode(start_index, end_index)
         return True
+
+    def _disable_bracketed_paste_mode(self, start_index, end_index):
+        """
+        Disable bracketed paste mode in each host's bash shell.
+        Bash 5.1+ enables bracketed paste mode by default, causing
+        ANSI escape sequences (e.g. \\e[?2004h, \\e[?2004l) to appear
+        in command output. Containernet's Docker host starts bash
+        without --noediting, so readline is active and triggers this.
+        These escape sequences cause false error reports in
+        Intf.isUp() when bringing up interfaces.
+        """
+        for i in range(start_index, end_index + 1):
+            self.hosts[i].cmd(
+                "bind 'set enable-bracketed-paste off' 2>/dev/null || true")
 
     def _setup_topology(self):
         """
