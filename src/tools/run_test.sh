@@ -266,7 +266,7 @@ else
         fi
     done
     if [ -z "$found_sub_dir" ]; then
-        print_message "No test result subdirectories found under $default_oasis_test_results_path"
+        print_message "No test result subdirectories found under $default_oasis_test_results_path" fail
     fi
 fi
 
