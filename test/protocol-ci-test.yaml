@@ -40,7 +40,7 @@ tests:
   test3:
     description: "Test BRTP/BTP"
     topology:
-      config_name: long_fat_network
+      config_name: path2-p0-p1
       config_file: predefined.topology.yaml
     target_protocols: [brtp-next, btp-next]
     allow_failure: true
@@ -50,4 +50,4 @@ tests:
         interval: 1
         interval_num: 20
         client_host: 0
-        server_host: 1
+        server_host: 3

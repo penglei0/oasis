@@ -1,0 +1,54 @@
+{
+  "data": [
+    {
+      "matrix_type": 0,
+      "description": "Adjacency matrix for a 2-path QUIC multipath mesh between h0 and h3",
+      "matrix_data": [
+        [0, 1, 1, 0],
+        [1, 0, 0, 1],
+        [1, 0, 0, 1],
+        [0, 1, 1, 0]
+      ]
+    },
+    {
+      "matrix_type": 1,
+      "description": "Bandwidth matrix for the 2-path QUIC multipath mesh (1000)",
+      "matrix_data": [
+        [0, 1000, 1000, 0],
+        [1000, 0, 0, 1000],
+        [1000, 0, 0, 1000],
+        [0, 1000, 1000, 0]
+      ]
+    },
+    {
+      "matrix_type": 2,
+      "description": "Loss matrix for the 2-path QUIC multipath mesh (0%)",
+      "matrix_data": [
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0.5, 0, 0, 0.5],
+        [0, 0.5, 0.5, 0]
+      ]
+    },
+    {
+      "matrix_type": 3,
+      "description": "Latency matrix for the 2-path QUIC multipath mesh (25ms)",
+      "matrix_data": [
+        [0, 25, 25, 0],
+        [25, 0, 0, 25],
+        [25, 0, 0, 25],
+        [0, 25, 25, 0]
+      ]
+    },
+    {
+      "matrix_type": 4,
+      "description": "Jitter matrix for the 2-path QUIC multipath mesh (0ms)",
+      "matrix_data": [
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]
+    }
+  ]
+}
