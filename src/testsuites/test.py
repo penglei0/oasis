@@ -286,8 +286,10 @@ def register_test_suite(name: str, match: str = 'exact',
         name:      The tool name used in YAML (e.g. ``'bats_iperf'``).
         match:     ``'exact'`` requires ``tool['name'] == name``.
                    ``'contains'`` requires ``name in tool['name']``.
-        test_type: If provided, ``TestConfig.test_type`` is set automatically
-                   by the default ``from_tool_dict``.
+        test_type: If provided, this value is stored in the registry and
+                   later injected into ``tool['test_type']`` by
+                   :func:`load_test_suite_from_registry` (if the key is
+                   not already present) before calling ``from_tool_dict``.
 
     Example::
 
@@ -328,13 +330,25 @@ def load_test_suite_from_registry(
         entry = _TEST_SUITE_REGISTRY[name]
         cls = entry['class']
         if hasattr(cls, 'from_tool_dict'):
-            return cls.from_tool_dict(tool, test_name, root_path)
+            # Inject registry-provided test_type into the tool dict if needed.
+            tool_with_type = tool
+            entry_test_type = entry.get('test_type')
+            if entry_test_type is not None and 'test_type' not in tool:
+                tool_with_type = dict(tool)
+                tool_with_type['test_type'] = entry_test_type
+            return cls.from_tool_dict(tool_with_type, test_name, root_path)
 
     # 2. contains match
     for key, entry in _TEST_SUITE_REGISTRY.items():
         if entry['match'] == 'contains' and key in name:
             cls = entry['class']
             if hasattr(cls, 'from_tool_dict'):
-                return cls.from_tool_dict(tool, test_name, root_path)
+                # Inject registry-provided test_type into the tool dict if needed.
+                tool_with_type = tool
+                entry_test_type = entry.get('test_type')
+                if entry_test_type is not None and 'test_type' not in tool:
+                    tool_with_type = dict(tool)
+                    tool_with_type['test_type'] = entry_test_type
+                return cls.from_tool_dict(tool_with_type, test_name, root_path)
 
     return None
