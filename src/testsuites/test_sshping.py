@@ -4,7 +4,7 @@ from protosuites.proto_info import IProtoInfo
 from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
 
 
-@register_test_suite('sshping_test', test_type=TestType.sshping)
+@register_test_suite('sshping', test_type=TestType.sshping)
 class SSHPingTest(ITestSuite):
     """Measures the RTT of ssh ping message between two hosts in the network.
 
