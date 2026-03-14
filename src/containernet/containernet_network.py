@@ -55,6 +55,7 @@ class ContainerizedNetwork (INetwork):
         self.node_ip_prefix = 24
         self.node_ip_start = ipStr(base) + f'/{self.node_ip_prefix}'
         # Topology related
+        self.net_topology = net_topology
         self.net_top_description = net_topology.description()
         self._init_matrix(net_topology)
         self._check_node_vols()
@@ -108,6 +109,7 @@ class ContainerizedNetwork (INetwork):
             "############### Oasis reload Networking ###########")
         # check topology change only.
         if self._check_topology_change(top):
+            self.net_topology = top
             self._init_matrix(top)
             if self.net_mat is not None:
                 diff = self.num_of_hosts - len(self.net_mat)
@@ -257,6 +259,9 @@ class ContainerizedNetwork (INetwork):
         logging.info("Oasis setup the network topology"
                      ", num. of nodes %s, mat size %s",
                      self.num_of_hosts, len(self.net_mat))
+        ascii_topology = self.net_topology.ascii_art()
+        if ascii_topology:
+            logging.info("Oasis current topology:\n%s", ascii_topology)
         for i in range(self.num_of_hosts):
             for j in range(i, self.num_of_hosts):
                 if self.net_mat[i][j] == 1:
