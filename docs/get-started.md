@@ -67,7 +67,9 @@ Oasis uses two kinds of Docker images:
 
 The nested Containernet image is built from the bundled upstream source tree in `containernet/`. If you cloned Oasis without submodules, run `git submodule update --init --recursive` before building.
 
-`Dockerfile.containernet` installs `build-essential` because the nested image builds Containernet from source instead of pulling a precompiled upstream image. During that build, Containernet's install step compiles native components such as `mnexec`, so the image needs the standard C/C++ toolchain at image-build time. If you use the prebuilt GHCR image below, your host does not need to install `build-essential` separately for Oasis.
+`Dockerfile.containernet` installs `build-essential` because the nested image builds Containernet from source instead of pulling a precompiled upstream image. During that build, Containernet's install step compiles native components such as `mnexec`, so the image needs the standard C/C++ toolchain at image-build time.
+
+If you use the prebuilt GHCR images in the next section, your host does not need to install `build-essential` separately for Oasis.
 
 ### For Linux: pull prebuilt images from GHCR
 
