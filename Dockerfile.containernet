@@ -11,6 +11,7 @@ RUN apt-get update \
     && apt-get install --yes \
         ansible \
         aptitude \
+        # required while building Containernet from source (`make install` / mnexec)
         build-essential \
         curl \
         git \
