@@ -12,6 +12,8 @@ RUN set -eux; \
         apt-get update; \
         apt-get upgrade --yes;
 
+# Python is bundled in the host-node image so Oasis can create /opt/venv
+# and preinstall the helper packages from docker/requirements/ubuntu-generic.txt.
 RUN set -eux; \
         apt-get install --yes \
             net-tools \

@@ -69,6 +69,8 @@ The nested Containernet image is built from the bundled upstream source tree in 
 
 `Dockerfile.containernet` installs `build-essential` because the nested image builds Containernet from source instead of pulling a precompiled upstream image. During that build, Containernet's install step compiles native components such as `mnexec`, so the image needs the standard C/C++ toolchain at image-build time.
 
+`Dockerfile.ubuntu-generic` installs Python 3 for a different reason: the host-node image creates `/opt/venv` and preinstalls the Python helper packages listed in `docker/requirements/ubuntu-generic.txt`, so those containers already have the Oasis Python tooling they expect at runtime.
+
 If you use the prebuilt GHCR images in the next section, your host does not need to install `build-essential` separately for Oasis.
 
 ### For Linux: pull prebuilt images from GHCR
