@@ -427,15 +427,14 @@ class TestFromToolDict(unittest.TestCase):
     def test_quic_perf_from_tool_dict(self):
         tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1,
                 'interval': 2.0, 'interval_num': 20,
-                'cert': '/tmp/my.crt', 'key': '/tmp/my.key',
                 'args': '--loop 5'}
         suite = QuicPerfTest.from_tool_dict(tool, 'test1', self.root_path)
         self.assertIsInstance(suite, QuicPerfTest)
         self.assertEqual(suite.config.test_type, TestType.throughput)
         self.assertEqual(suite.config.interval, 2.0)
         self.assertEqual(suite.config.interval_num, 20)
-        self.assertEqual(suite.cert, '/tmp/my.crt')
-        self.assertEqual(suite.key, '/tmp/my.key')
+        self.assertEqual(suite.cert, '/etc/cfg/server.crt')
+        self.assertEqual(suite.key, '/etc/cfg/server.key')
         self.assertEqual(suite.config.args, '--loop 5')
 
     def test_quic_perf_from_tool_dict_defaults(self):

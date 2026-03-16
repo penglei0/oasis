@@ -20,8 +20,6 @@ class QuicPerfTest(ITestSuite):
           quic_perf:
             interval: 1
             interval_num: 10
-            cert: /etc/cfg/server.crt   # TLS certificate (server)
-            key: /etc/cfg/server.key    # TLS private key  (server)
             args: "--loop 5"              # extra CLI arguments
     """
 
@@ -49,8 +47,6 @@ class QuicPerfTest(ITestSuite):
             root_path=root_path,
         )
         instance = cls(config)
-        instance.cert = tool.get('cert', cls.DEFAULT_CERT)
-        instance.key = tool.get('key', cls.DEFAULT_KEY)
         return instance
 
     def pre_process(self):
