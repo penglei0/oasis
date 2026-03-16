@@ -77,10 +77,15 @@ class QuicPerfTest(ITestSuite):
         if self.config is None:
             logging.error("QuicPerfTest config is None.")
             return False
+        base_path = os.path.dirname(os.path.abspath(self.result.record))
+        server_log_path = os.path.join(
+            base_path, f"quic_server/log/")
+        client_log_path = os.path.join(
+            base_path, f"quic_client/log/")
         # --- start server ---------------------------------------------------
         server_cmd = (
             f'quic_perf --mode server'
-            f' --cert {self.cert} --key {self.key}'
+            f' --cert {self.cert} --key {self.key} --log {server_log_path}'
         )
         if recv_port:
             server_cmd += f' --port {recv_port}'
@@ -99,7 +104,7 @@ class QuicPerfTest(ITestSuite):
             client_cmd += f' {proto_args}'
         if self.config.args:
             client_cmd += f' {self.config.args}'
-        client_cmd += f' --count 0 --duration {duration}'
+        client_cmd += f' --count 0 --duration {duration} --log {client_log_path}'
         logging.info('quic_perf client cmd: %s', client_cmd)
 
         proc = client.popen(client_cmd)
