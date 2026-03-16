@@ -60,6 +60,7 @@ class TestConfig:
         server_host:  Host index that acts as the traffic receiver.
         allow_fail:   When *True* a failure does not abort the run.
         args:         Free-form extra arguments forwarded to the tool.
+        multipath:    Enable the tool's multipath mode when supported.
         root_path:    Filesystem root for result artefacts.
     """
     name: str = field(default="")  # name of test tool
@@ -78,6 +79,7 @@ class TestConfig:
     server_host: Optional[int] = field(default=None)
     allow_fail: Optional[bool] = field(default=False)
     args: Optional[str] = field(default="")  # args for test tool
+    multipath: Optional[bool] = field(default=False)
     root_path: str = field(default=DEFAULT_ROOT_PATH)
 
 

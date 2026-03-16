@@ -4,6 +4,8 @@ import os
 import shutil
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from testsuites.test import (
     TestConfig, TestType, ITestSuite, PROXY_PROTOCOLS,
@@ -426,7 +428,7 @@ class TestFromToolDict(unittest.TestCase):
 
     def test_quic_perf_from_tool_dict(self):
         tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1,
-                'interval': 2.0, 'interval_num': 20,
+                'interval': 2.0, 'interval_num': 20, 'multipath': True,
                 'args': '--loop 5'}
         suite = QuicPerfTest.from_tool_dict(tool, 'test1', self.root_path)
         self.assertIsInstance(suite, QuicPerfTest)
@@ -436,6 +438,7 @@ class TestFromToolDict(unittest.TestCase):
         self.assertEqual(suite.cert, '/etc/cfg/server.crt')
         self.assertEqual(suite.key, '/etc/cfg/server.key')
         self.assertEqual(suite.config.args, '--loop 5')
+        self.assertTrue(suite.config.multipath)
 
     def test_quic_perf_from_tool_dict_defaults(self):
         tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1}
@@ -444,6 +447,28 @@ class TestFromToolDict(unittest.TestCase):
         self.assertEqual(suite.cert, '/etc/cfg/server.crt')
         self.assertEqual(suite.key, '/etc/cfg/server.key')
         self.assertEqual(suite.config.args, '')
+        self.assertFalse(suite.config.multipath)
+
+    @patch('testsuites.test_quic_perf.time.sleep', return_value=None)
+    def test_quic_perf_multipath_flag_is_forwarded(self, _sleep):
+        tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1,
+                'interval': 2.0, 'interval_num': 3, 'multipath': True}
+        suite = QuicPerfTest.from_tool_dict(tool, 'test1', self.root_path)
+        suite.result.record = os.path.join(self.root_path, 'quic_perf.log')
+
+        client = MagicMock()
+        server = MagicMock()
+        server.getIntfs.return_value = [
+            SimpleNamespace(name='eth0', ip='10.0.0.2'),
+        ]
+
+        self.assertTrue(suite._run_quic_perf(
+            client, server, ('10.0.0.2', 4433), ('--dgram', 'quic-datagram')))
+
+        server_cmd = server.cmd.call_args_list[0].args[0]
+        client_cmd = client.popen.call_args.args[0]
+        self.assertIn('--multipath', server_cmd)
+        self.assertIn('--multipath', client_cmd)
 
 
 try:

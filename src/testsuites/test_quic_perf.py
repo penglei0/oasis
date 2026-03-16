@@ -22,6 +22,7 @@ class QuicPerfTest(ITestSuite):
             interval: 1
             interval_num: 10
             args: "--loop 5"              # extra CLI arguments
+            multipath: true               # enable QUIC multipath mode
     """
     DEFAULT_CERT = '/etc/cfg/server.crt'
     DEFAULT_KEY = '/etc/cfg/server.key'
@@ -43,6 +44,7 @@ class QuicPerfTest(ITestSuite):
             client_host=tool.get('client_host'),
             server_host=tool.get('server_host'),
             args=tool.get('args', ''),
+            multipath=tool.get('multipath', False),
             test_type=TestType.throughput,
             root_path=root_path,
         )
@@ -103,6 +105,8 @@ class QuicPerfTest(ITestSuite):
                 server_cmd += f' --port {receiver_port}'
             if proto_args:
                 server_cmd += f' {proto_args}'
+            if self.config.multipath:
+                server_cmd += ' --multipath'
             logging.info('quic_perf server cmd: %s', server_cmd)
             server.cmd(f'{server_cmd} &')
         time.sleep(1)  # give the server a moment to bind
@@ -118,6 +122,8 @@ class QuicPerfTest(ITestSuite):
             client_cmd += f' {proto_args}'
         if self.config.args:
             client_cmd += f' {self.config.args}'
+        if self.config.multipath:
+            client_cmd += ' --multipath'
         client_cmd += f' --count 0 --duration {duration}'
         client_cmd += f' --log {client_log_path}'
         logging.info('quic_perf client cmd: %s', client_cmd)
