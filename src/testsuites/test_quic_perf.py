@@ -1,6 +1,7 @@
 import logging
 import time
 import subprocess
+
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
 from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
