@@ -70,14 +70,13 @@ class QuicPerfTest(ITestSuite):
         logging.info(
             "############### Oasis QuicPerfTest from %s to %s ###############",
             client.name(), server.name())
-        return self._run_quic_perf(client, server, receiver_ip, receiver_port)
+        return self._run_quic_perf(client, server, receiver_ip, receiver_port, proto_info.get_protocol_args(network))
 
     def _run_quic_perf(self, client, server, recv_ip, recv_port, proto_args=None):
         """Start the quic_perf server, run the client, then clean up."""
         if self.config is None:
             logging.error("QuicPerfTest config is None.")
             return False
-
         # --- start server ---------------------------------------------------
         server_cmd = (
             f'quic_perf --mode server'
