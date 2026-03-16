@@ -90,12 +90,10 @@ class QuicPerfTest(ITestSuite):
         receiver_ip, receiver_port = receiver
         proto_args, proto_name = protocol
         base_path = os.path.dirname(os.path.abspath(self.result.record))
-        server_log_path = os.path.join(
-            base_path, f"{proto_name}/server/log/quic_perf.log")
-        client_log_path = os.path.join(
-            base_path, f"{proto_name}/client/log/quic_perf.log")
         # --- start server ---------------------------------------------------
         for intf in server.getIntfs():
+            server_log_path = os.path.join(
+                base_path, f"{proto_name}/log/{server.name()}_quic_perf.log")
             logging.info("QuicPerfTest server %s intf %s IP %s", server.name(), intf.name, intf.ip)
             server_cmd = (
                 f'quic_perf --mode server --addr {intf.ip}'
@@ -111,6 +109,8 @@ class QuicPerfTest(ITestSuite):
 
         # --- run client ------------------------------------------------------
         duration = self.config.interval * self.config.interval_num
+        client_log_path = os.path.join(
+            base_path, f"{proto_name}/log/{client.name()}_quic_perf.log")
         client_cmd = f'quic_perf --mode client --addr {receiver_ip}'
         if receiver_port:
             client_cmd += f' --port {receiver_port}'
