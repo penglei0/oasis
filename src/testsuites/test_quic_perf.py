@@ -79,8 +79,10 @@ class QuicPerfTest(ITestSuite):
             logging.error("QuicPerfTest config is None.")
             return False
         base_path = os.path.dirname(os.path.abspath(self.result.record))
-        server_log_path = os.path.join(base_path, "quic_server_log.txt")
-        client_log_path = os.path.join(base_path, "quic_client_log.txt")
+        server_log_path = os.path.join(
+            base_path, f"quic_server/log/")
+        client_log_path = os.path.join(
+            base_path, f"quic_client/log/")
         # --- start server ---------------------------------------------------
         server_cmd = (
             f'quic_perf --mode server'
