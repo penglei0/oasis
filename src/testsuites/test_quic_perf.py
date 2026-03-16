@@ -86,6 +86,8 @@ class QuicPerfTest(ITestSuite):
             f'quic_perf --mode server'
             f' --cert {self.cert} --key {self.key}'
         )
+        if recv_port:
+            server_cmd += f' --port {recv_port}'
         logging.info('quic_perf server cmd: %s', server_cmd)
         server.cmd(f'{server_cmd} &')
         time.sleep(1)  # give the server a moment to bind
