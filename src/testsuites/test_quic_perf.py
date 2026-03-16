@@ -119,7 +119,7 @@ class QuicPerfTest(ITestSuite):
         if self.config.args:
             client_cmd += f' {self.config.args}'
         client_cmd += f' --count 0 --duration {duration}'
-        client_cmd += f' --log {client_log_path} --log-interval {self.result.record}'
+        client_cmd += f' --log {client_log_path}'
         logging.info('quic_perf client cmd: %s', client_cmd)
 
         client.popen(client_cmd)
