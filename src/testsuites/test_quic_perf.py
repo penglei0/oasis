@@ -80,9 +80,9 @@ class QuicPerfTest(ITestSuite):
             return False
         base_path = os.path.dirname(os.path.abspath(self.result.record))
         server_log_path = os.path.join(
-            base_path, f"quic_server/log/")
+            base_path, f"quic_server/log/quic_perf.log")
         client_log_path = os.path.join(
-            base_path, f"quic_client/log/")
+            base_path, f"quic_client/log/quic_perf.log")
         # --- start server ---------------------------------------------------
         server_cmd = (
             f'quic_perf --mode server'
