@@ -50,8 +50,6 @@ jobs:
         with:
           lfs: true
           submodules: recursive
-      - name: sync git-lfs
-        run: git lfs install && git lfs pull
       - name: Set up python
         uses: actions/setup-python@v6
         with:

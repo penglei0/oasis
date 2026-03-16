@@ -78,8 +78,6 @@ jobs:
         with:
           lfs: true
           submodules: recursive
-      - name: Sync Git LFS
-        run: git lfs install && git lfs pull
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to GitHub Container Registry
