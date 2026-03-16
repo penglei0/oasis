@@ -18,6 +18,7 @@ from testsuites.test_rtt import RTTTest
 from testsuites.test_ping import PingTest
 from testsuites.test_scp import ScpTest
 from testsuites.test_sshping import SSHPingTest
+from testsuites.test_quic_perf import QuicPerfTest
 from testsuites.test_regular import RegularTest
 
 
@@ -238,6 +239,7 @@ class TestRegistry(unittest.TestCase):
         self.assertIn('rtt', reg)
         self.assertIn('ping', reg)
         self.assertIn('scp', reg)
+        self.assertIn('quic_perf', reg)
 
     def test_iperf_uses_contains_match(self):
         reg = get_test_suite_registry()
@@ -245,7 +247,7 @@ class TestRegistry(unittest.TestCase):
 
     def test_exact_match_entries(self):
         reg = get_test_suite_registry()
-        for name in ('bats_iperf', 'rtt', 'ping', 'scp'):
+        for name in ('bats_iperf', 'rtt', 'ping', 'scp', 'quic_perf'):
             self.assertEqual(reg[name]['match'], 'exact', f'{name} should be exact match')
 
     def test_registry_classes(self):
@@ -255,6 +257,7 @@ class TestRegistry(unittest.TestCase):
         self.assertEqual(reg['rtt']['class'], RTTTest)
         self.assertEqual(reg['ping']['class'], PingTest)
         self.assertEqual(reg['scp']['class'], ScpTest)
+        self.assertEqual(reg['quic_perf']['class'], QuicPerfTest)
 
 
 class TestLoadTestSuiteFromRegistry(unittest.TestCase):
@@ -298,6 +301,11 @@ class TestLoadTestSuiteFromRegistry(unittest.TestCase):
         suite = load_test_suite_from_registry(tool, 'test1', self.root_path)
         self.assertIsInstance(suite, IperfTest)
 
+    def test_exact_match_quic_perf(self):
+        tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1}
+        suite = load_test_suite_from_registry(tool, 'test1', self.root_path)
+        self.assertIsInstance(suite, QuicPerfTest)
+
     def test_bats_iperf_exact_beats_iperf_contains(self):
         """bats_iperf should match the exact entry, not the 'contains' iperf entry."""
         tool = {'name': 'bats_iperf', 'client_host': 0, 'server_host': 1}
@@ -305,7 +313,7 @@ class TestLoadTestSuiteFromRegistry(unittest.TestCase):
         self.assertIsInstance(suite, IperfBatsTest)
 
     def test_unknown_tool_returns_none(self):
-        tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1}
+        tool = {'name': 'unknown_tool_xyz', 'client_host': 0, 'server_host': 1}
         suite = load_test_suite_from_registry(tool, 'test1', self.root_path)
         self.assertIsNone(suite)
 
@@ -416,6 +424,28 @@ class TestFromToolDict(unittest.TestCase):
         self.assertIsInstance(suite, RegularTest)
         self.assertEqual(suite.config.args, '-v %s')
 
+    def test_quic_perf_from_tool_dict(self):
+        tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1,
+                'interval': 2.0, 'interval_num': 20,
+                'cert': '/tmp/my.crt', 'key': '/tmp/my.key',
+                'args': '--loop 5'}
+        suite = QuicPerfTest.from_tool_dict(tool, 'test1', self.root_path)
+        self.assertIsInstance(suite, QuicPerfTest)
+        self.assertEqual(suite.config.test_type, TestType.throughput)
+        self.assertEqual(suite.config.interval, 2.0)
+        self.assertEqual(suite.config.interval_num, 20)
+        self.assertEqual(suite.cert, '/tmp/my.crt')
+        self.assertEqual(suite.key, '/tmp/my.key')
+        self.assertEqual(suite.config.args, '--loop 5')
+
+    def test_quic_perf_from_tool_dict_defaults(self):
+        tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1}
+        suite = QuicPerfTest.from_tool_dict(tool, 'test1', self.root_path)
+        self.assertIsInstance(suite, QuicPerfTest)
+        self.assertEqual(suite.cert, '/etc/cfg/server.crt')
+        self.assertEqual(suite.key, '/etc/cfg/server.key')
+        self.assertEqual(suite.config.args, '')
+
 
 try:
     from src.core.runner import load_test_tool  # pylint: disable=ungrouped-imports
@@ -462,8 +492,13 @@ class TestLoadTestToolIntegration(unittest.TestCase):
         suite = load_test_tool(tool, 'test1', self.root_path)
         self.assertIsInstance(suite, ScpTest)
 
-    def test_load_unknown_falls_back_to_regular(self):
+    def test_load_quic_perf(self):
         tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1}
+        suite = load_test_tool(tool, 'test1', self.root_path)
+        self.assertIsInstance(suite, QuicPerfTest)
+
+    def test_load_unknown_falls_back_to_regular(self):
+        tool = {'name': 'unknown_tool_xyz', 'client_host': 0, 'server_host': 1}
         suite = load_test_tool(tool, 'test1', self.root_path)
         self.assertIsInstance(suite, RegularTest)
 

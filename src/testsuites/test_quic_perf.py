@@ -1,0 +1,111 @@
+import logging
+import time
+from interfaces.network import INetwork
+from protosuites.proto_info import IProtoInfo
+from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
+
+
+@register_test_suite('quic_perf', test_type=TestType.throughput)
+class QuicPerfTest(ITestSuite):
+    """Throughput test using the ``quic_perf`` QUIC performance tool.
+
+    ``quic_perf`` measures QUIC protocol performance in a client/server
+    model.  The server is started on one host and the client connects
+    from another host.
+
+    Supported YAML keys (in addition to the standard ones)::
+
+        test_tools:
+          quic_perf:
+            interval: 1
+            interval_num: 10
+            cert: /etc/cfg/server.crt    # TLS certificate (server)
+            key:  /etc/cfg/server.key     # TLS private key  (server)
+            args: "--loop 5"              # extra CLI arguments
+    """
+
+    DEFAULT_CERT = "/etc/cfg/server.crt"
+    DEFAULT_KEY = "/etc/cfg/server.key"
+
+    def __init__(self, config: TestConfig) -> None:
+        super().__init__(config)
+        self.cert = self.DEFAULT_CERT
+        self.key = self.DEFAULT_KEY
+
+    @classmethod
+    def from_tool_dict(cls, tool: dict, test_name: str,
+                       root_path: str) -> 'QuicPerfTest':
+        """Build a :class:`QuicPerfTest` from a YAML tool dictionary."""
+        config = TestConfig(
+            name=tool['name'],
+            test_name=test_name,
+            interval=tool.get('interval', 1.0),
+            interval_num=tool.get('interval_num', 10),
+            client_host=tool.get('client_host'),
+            server_host=tool.get('server_host'),
+            args=tool.get('args', ''),
+            test_type=TestType.throughput,
+            root_path=root_path,
+        )
+        instance = cls(config)
+        instance.cert = tool.get('cert', cls.DEFAULT_CERT)
+        instance.key = tool.get('key', cls.DEFAULT_KEY)
+        return instance
+
+    def pre_process(self):
+        return True
+
+    def post_process(self):
+        return True
+
+    def _run_test(self, network: INetwork, proto_info: IProtoInfo):
+        hosts = network.get_hosts()
+        if hosts is None:
+            return False
+        self._default_client_server(network)
+
+        client = hosts[self.config.client_host]
+        server = hosts[self.config.server_host]
+
+        receiver_ip, receiver_port = self.resolve_receiver(network, proto_info)
+
+        logging.info(
+            "############### Oasis QuicPerfTest from %s to %s ###############",
+            client.name(), server.name())
+        return self._run_quic_perf(client, server, receiver_ip, receiver_port)
+
+    def _run_quic_perf(self, client, server, recv_ip, recv_port):
+        """Start the quic_perf server, run the client, then clean up."""
+        if self.config is None:
+            logging.error("QuicPerfTest config is None.")
+            return False
+
+        # --- start server ---------------------------------------------------
+        server_cmd = (
+            f'quic_perf --mode server'
+            f' --addr {self.cert} --key {self.key}'
+        )
+        logging.info('quic_perf server cmd: %s', server_cmd)
+        server.cmd(f'{server_cmd} &')
+        time.sleep(1)  # give the server a moment to bind
+
+        # --- run client ------------------------------------------------------
+        client_cmd = f'quic_perf --mode client --addr {recv_ip}'
+        if recv_port:
+            client_cmd += f' --port {recv_port}'
+        if self.config.args:
+            client_cmd += f' {self.config.args}'
+        logging.info('quic_perf client cmd: %s', client_cmd)
+        res = client.popen(client_cmd).stdout.read().decode('utf-8')
+        logging.info('quic_perf client output: %s', res)
+
+        # write result to the record file
+        with open(self.result.record, 'w', encoding='utf-8') as fout:
+            fout.write(res)
+        logging.info('quic_perf test result saved to %s', self.result.record)
+
+        # --- cleanup ---------------------------------------------------------
+        time.sleep(1)
+        client.cmd('pkill -9 -f quic_perf')
+        server.cmd('pkill -9 -f quic_perf')
+        return True
