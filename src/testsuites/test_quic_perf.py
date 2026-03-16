@@ -89,11 +89,13 @@ class QuicPerfTest(ITestSuite):
         time.sleep(1)  # give the server a moment to bind
 
         # --- run client ------------------------------------------------------
+        duration = self.config.interval * self.config.interval_num
         client_cmd = f'quic_perf --mode client --addr {recv_ip}'
         if recv_port:
             client_cmd += f' --port {recv_port}'
         if self.config.args:
             client_cmd += f' {self.config.args}'
+        client_cmd += f' --count 0 --duration {duration}'
         logging.info('quic_perf client cmd: %s', client_cmd)
 
         proc = client.popen(client_cmd)
