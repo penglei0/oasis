@@ -63,7 +63,7 @@ class IperfBatsTest(ITestSuite):
             logging.info(
                 'bats_iperf server cmd: %s', bats_iperf_server_cmd)
             server.cmd(f'{bats_iperf_server_cmd}')
-        
+
         client_log_path = os.path.join(
             base_path, f"{proto_name}/log/{client.name()}/")
         bats_iperf_client_cmd = f'bats_iperf -c {receiver_ip} {args_from_proto} -p {receiver_port} -P {parallel}' \

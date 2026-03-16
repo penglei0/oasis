@@ -1,7 +1,6 @@
 import logging
 import time
 import os
-import subprocess
 
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
@@ -123,7 +122,7 @@ class QuicPerfTest(ITestSuite):
         client_cmd += f' --log {client_log_path} --log-interval {self.result.record}'
         logging.info('quic_perf client cmd: %s', client_cmd)
 
-        proc = client.popen(client_cmd)
+        client.popen(client_cmd)
 
         time.sleep(duration + 2)  # wait for the client to finish (with some buffer)
         # --- cleanup ---------------------------------------------------------
