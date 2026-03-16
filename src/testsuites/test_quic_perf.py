@@ -24,14 +24,8 @@ class QuicPerfTest(ITestSuite):
             interval_num: 10
             args: "--loop 5"              # extra CLI arguments
     """
-
-    DEFAULT_CERT = "/etc/cfg/server.crt"
-    DEFAULT_KEY = "/etc/cfg/server.key"
-
     def __init__(self, config: TestConfig) -> None:
         super().__init__(config)
-        self.cert = self.DEFAULT_CERT
-        self.key = self.DEFAULT_KEY
 
     @classmethod
     def from_tool_dict(cls, tool: dict, test_name: str,
@@ -71,29 +65,31 @@ class QuicPerfTest(ITestSuite):
         logging.info(
             "############### Oasis QuicPerfTest from %s to %s ###############",
             client.name(), server.name())
-        return self._run_quic_perf(client, server, receiver_ip, receiver_port, proto_info.get_protocol_args(network))
+        return self._run_quic_perf(client, server, receiver_ip, receiver_port, proto_info.get_protocol_args(network), proto_info.get_protocol_name())
 
-    def _run_quic_perf(self, client, server, recv_ip, recv_port, proto_args=None):
+    def _run_quic_perf(self, client, server, recv_ip, recv_port, proto_args=None, proto_name=None):
         """Start the quic_perf server, run the client, then clean up."""
         if self.config is None:
             logging.error("QuicPerfTest config is None.")
             return False
         base_path = os.path.dirname(os.path.abspath(self.result.record))
         server_log_path = os.path.join(
-            base_path, f"quic_server/log/quic_perf.log")
+            base_path, f"{proto_name}/server/log/quic_perf.log")
         client_log_path = os.path.join(
-            base_path, f"quic_client/log/quic_perf.log")
+            base_path, f"{proto_name}/client/log/quic_perf.log")
         # --- start server ---------------------------------------------------
-        server_cmd = (
-            f'quic_perf --mode server'
-            f' --cert {self.cert} --key {self.key} --log {server_log_path}'
-        )
-        if recv_port:
-            server_cmd += f' --port {recv_port}'
-        if proto_args:
-            server_cmd += f' {proto_args}'
-        logging.info('quic_perf server cmd: %s', server_cmd)
-        server.cmd(f'{server_cmd} &')
+        for intf in server.getIntfs():
+            logging.info("QuicPerfTest server %s intf %s IP %s", server.name(), intf.name, intf.ip)
+            server_cmd = (
+                f'quic_perf --mode server --addr {intf.ip}'
+                f' --log {server_log_path}'
+            )
+            if recv_port:
+                server_cmd += f' --port {recv_port}'
+            if proto_args:
+                server_cmd += f' {proto_args}'
+            logging.info('quic_perf server cmd: %s', server_cmd)
+            server.cmd(f'{server_cmd} &')
         time.sleep(1)  # give the server a moment to bind
 
         # --- run client ------------------------------------------------------

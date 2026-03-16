@@ -62,8 +62,7 @@ protocols:
   # requires `quic_perf`
   - name: quic-stream
     type: none_distributed
-    args:
-      - ""
+    args: []
   - name: quic-datagram
     type: none_distributed
     args:
