@@ -83,7 +83,7 @@ class QuicPerfTest(ITestSuite):
         # --- start server ---------------------------------------------------
         server_cmd = (
             f'quic_perf --mode server'
-            f' --addr {self.cert} --key {self.key}'
+            f' --cert {self.cert} --key {self.key}'
         )
         logging.info('quic_perf server cmd: %s', server_cmd)
         server.cmd(f'{server_cmd} &')
