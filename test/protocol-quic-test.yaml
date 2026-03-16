@@ -12,10 +12,8 @@ tests:
     target_protocols: [quic-stream, quic-datagram]
     route: static_bfs
     test_tools:
-      quic_iperf:
+      quic_perf:
         interval: 1
         interval_num: 10
-        packet_type: tcp
         client_host: 0
-        server_host: 1
         server_host: 3
