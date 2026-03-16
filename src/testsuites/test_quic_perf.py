@@ -24,8 +24,13 @@ class QuicPerfTest(ITestSuite):
             interval_num: 10
             args: "--loop 5"              # extra CLI arguments
     """
+    DEFAULT_CERT = '/etc/cfg/server.crt'
+    DEFAULT_KEY = '/etc/cfg/server.key'
+
     def __init__(self, config: TestConfig) -> None:
         super().__init__(config)
+        self.cert = self.DEFAULT_CERT
+        self.key = self.DEFAULT_KEY
 
     @classmethod
     def from_tool_dict(cls, tool: dict, test_name: str,
@@ -43,6 +48,8 @@ class QuicPerfTest(ITestSuite):
             root_path=root_path,
         )
         instance = cls(config)
+        instance.cert = tool.get('cert', cls.DEFAULT_CERT)
+        instance.key = tool.get('key', cls.DEFAULT_KEY)
         return instance
 
     def pre_process(self):
@@ -65,13 +72,23 @@ class QuicPerfTest(ITestSuite):
         logging.info(
             "############### Oasis QuicPerfTest from %s to %s ###############",
             client.name(), server.name())
-        return self._run_quic_perf(client, server, receiver_ip, receiver_port, proto_info.get_protocol_args(network), proto_info.get_protocol_name())
+        return self._run_quic_perf(
+            client,
+            server,
+            (receiver_ip, receiver_port),
+            (
+                proto_info.get_protocol_args(network),
+                proto_info.get_protocol_name(),
+            ),
+        )
 
-    def _run_quic_perf(self, client, server, recv_ip, recv_port, proto_args=None, proto_name=None):
+    def _run_quic_perf(self, client, server, receiver, protocol):
         """Start the quic_perf server, run the client, then clean up."""
         if self.config is None:
             logging.error("QuicPerfTest config is None.")
             return False
+        receiver_ip, receiver_port = receiver
+        proto_args, proto_name = protocol
         base_path = os.path.dirname(os.path.abspath(self.result.record))
         server_log_path = os.path.join(
             base_path, f"{proto_name}/server/log/quic_perf.log")
@@ -84,8 +101,8 @@ class QuicPerfTest(ITestSuite):
                 f'quic_perf --mode server --addr {intf.ip}'
                 f' --log {server_log_path}'
             )
-            if recv_port:
-                server_cmd += f' --port {recv_port}'
+            if receiver_port:
+                server_cmd += f' --port {receiver_port}'
             if proto_args:
                 server_cmd += f' {proto_args}'
             logging.info('quic_perf server cmd: %s', server_cmd)
@@ -94,9 +111,9 @@ class QuicPerfTest(ITestSuite):
 
         # --- run client ------------------------------------------------------
         duration = self.config.interval * self.config.interval_num
-        client_cmd = f'quic_perf --mode client --addr {recv_ip}'
-        if recv_port:
-            client_cmd += f' --port {recv_port}'
+        client_cmd = f'quic_perf --mode client --addr {receiver_ip}'
+        if receiver_port:
+            client_cmd += f' --port {receiver_port}'
         if proto_args:
             client_cmd += f' {proto_args}'
         if self.config.args:
