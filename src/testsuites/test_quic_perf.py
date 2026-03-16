@@ -98,6 +98,7 @@ class QuicPerfTest(ITestSuite):
             server_cmd = (
                 f'quic_perf --mode server --addr {intf.ip}'
                 f' --log {server_log_path}'
+                f' --log-interval {self.result.record}'
             )
             if receiver_port:
                 server_cmd += f' --port {receiver_port}'
@@ -118,55 +119,18 @@ class QuicPerfTest(ITestSuite):
             client_cmd += f' {proto_args}'
         if self.config.args:
             client_cmd += f' {self.config.args}'
-        client_cmd += f' --count 0 --duration {duration} --log {client_log_path}'
+        client_cmd += f' --count 0 --duration {duration}'
+        client_cmd += f' --log {client_log_path} --log-interval {self.result.record}'
         logging.info('quic_perf client cmd: %s', client_cmd)
 
         proc = client.popen(client_cmd)
 
-        # Derive a timeout from interval * interval_num, if possible.
-        timeout_seconds = None
-        try:
-            if self.config.interval is not None and self.config.interval_num is not None:
-                timeout_seconds = float(self.config.interval) * float(self.config.interval_num)
-                if timeout_seconds <= 0:
-                    timeout_seconds = None
-        except (TypeError, ValueError):
-            timeout_seconds = None
-
-        res = ""
-        test_success = True
-        try:
-            if timeout_seconds is not None:
-                stdout_data, _ = proc.communicate(timeout=timeout_seconds)
-            else:
-                stdout_data, _ = proc.communicate()
-            res = stdout_data.decode('utf-8', errors='replace')
-        except subprocess.TimeoutExpired:
-            logging.error(
-                "quic_perf client timed out after %.2f seconds; terminating process",
-                timeout_seconds,
-            )
-            test_success = False
-            proc.kill()
-            try:
-                stdout_data, _ = proc.communicate(timeout=5)
-                res = stdout_data.decode('utf-8', errors='replace')
-            except subprocess.TimeoutExpired:
-                logging.error("Failed to terminate quic_perf client process cleanly")
-                res = ""
-        logging.info('quic_perf client output: %s', res)
-
-        # write result to the record file
-        with open(self.result.record, 'w', encoding='utf-8') as fout:
-            fout.write(res)
-        logging.info('quic_perf test result saved to %s', self.result.record)
-
+        time.sleep(duration + 2)  # wait for the client to finish (with some buffer)
         # --- cleanup ---------------------------------------------------------
         try:
-            time.sleep(1)
             client.cmd('pkill -9 -f quic_perf')
             server.cmd('pkill -9 -f quic_perf')
         finally:
             # Nothing additional here; `finally` ensures cleanup attempts run.
             pass
-        return test_success
+        return True
