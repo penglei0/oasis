@@ -19,8 +19,8 @@ class QuicPerfTest(ITestSuite):
           quic_perf:
             interval: 1
             interval_num: 10
-            cert: /etc/cfg/server.crt    # TLS certificate (server)
-            key:  /etc/cfg/server.key     # TLS private key  (server)
+            cert: /etc/cfg/server.crt   # TLS certificate (server)
+            key: /etc/cfg/server.key    # TLS private key  (server)
             args: "--loop 5"              # extra CLI arguments
     """
 
