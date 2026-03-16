@@ -55,16 +55,17 @@ class IperfBatsTest(ITestSuite):
         interval_num = self.config.interval_num or 10
         interval = self.config.interval or 1
         base_path = os.path.dirname(os.path.abspath(self.result.record))
-        server_log_path = os.path.join(
-            base_path, f"{proto_name}_server/log/")
-        client_log_path = os.path.join(
-            base_path, f"{proto_name}_client/log/")
         for intf in server.getIntfs():
+            server_log_path = os.path.join(
+                base_path, f"{proto_name}/log/{server.name()}/")
             bats_iperf_server_cmd = f'bats_iperf -s -p {receiver_port} -i {float(interval)} -I {intf}' \
                 f' -l {self.result.record}  -L {server_log_path} &'
             logging.info(
                 'bats_iperf server cmd: %s', bats_iperf_server_cmd)
             server.cmd(f'{bats_iperf_server_cmd}')
+
+        client_log_path = os.path.join(
+            base_path, f"{proto_name}/log/{client.name()}/")
         bats_iperf_client_cmd = f'bats_iperf -c {receiver_ip} {args_from_proto} -p {receiver_port} -P {parallel}' \
             f' -i {float(interval)} -t {int(interval_num)} -L {client_log_path}'
         logging.info('bats_iperf client cmd: %s', bats_iperf_client_cmd)

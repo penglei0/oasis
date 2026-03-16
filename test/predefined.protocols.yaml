@@ -59,3 +59,11 @@ protocols:
     type: none_distributed
     args:
       - "-m 10"
+  # requires `quic_perf`
+  - name: quic-stream
+    type: none_distributed
+    args: []
+  - name: quic-datagram
+    type: none_distributed
+    args:
+      - "--dgram"

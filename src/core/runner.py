@@ -289,8 +289,6 @@ def setup_test(test_case_yaml, internal_target_protocols, network: INetwork,
                 # copy the proto_config
                 client_conf = copy.deepcopy(proto_config)
                 server_conf = copy.deepcopy(proto_config)
-                client_conf.name = f"{proto_config.name}_client"
-                server_conf.name = f"{proto_config.name}_server"
             else:
                 client_conf = proto_config.protocols[0]
                 server_conf = proto_config.protocols[1]
