@@ -1,16 +1,38 @@
 import logging
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
-from .test import (ITestSuite, TestConfig)
+from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
 
 
+@register_test_suite('scp', test_type=TestType.scp)
 class ScpTest(ITestSuite):
     """Measures the time of scp file transfer between two hosts in the network.
+
+    Generates a random file of ``file_size`` MB on the client, transfers it
+    to the server via ``scp``, and verifies integrity with ``sha256sum``.
     """
 
     def __init__(self, config: TestConfig) -> None:
         super().__init__(config)
         self.scp_files = []
+
+    @classmethod
+    def from_tool_dict(cls, tool: dict, test_name: str,
+                       root_path: str) -> 'ScpTest':
+        """Build a :class:`ScpTest` from a YAML tool dictionary."""
+        config = TestConfig(
+            name=tool['name'],
+            test_name=test_name,
+            interval=tool.get('interval', 1.0),
+            interval_num=tool.get('interval_num', 10),
+            file_size=tool.get('file_size', 1),
+            client_host=tool.get('client_host'),
+            server_host=tool.get('server_host'),
+            args=tool.get('args', ''),
+            test_type=TestType.scp,
+            root_path=root_path,
+        )
+        return cls(config)
 
     def post_process(self):
         return True
@@ -32,20 +54,17 @@ class ScpTest(ITestSuite):
             logging.error(
                 "Client or server host index is out of range: %d, %d", self.config.client_host, self.config.server_host)
             return False
-        receiver_ip = None
+
+        receiver_ip, _ = self.resolve_receiver(network, proto_info)
+
         target_file_name = f'scp_data_{self.config.file_size}M'
         gen_file_cmd = f'head -c {self.config.file_size}M /dev/urandom > {target_file_name}'
-        # Run ping test from client to server
+        # Run scp test from client to server
         logging.info(
             f"############### Oasis ScpTest from "
             "%s to %s ###############",
             hosts[self.config.client_host].name(),
             hosts[self.config.server_host].name())
-        tun_ip = proto_info.get_tun_ip(
-            network, self.config.server_host)
-        if tun_ip == "":
-            tun_ip = hosts[self.config.server_host].IP()
-        receiver_ip = tun_ip
         # 1. Generate scp files
         hosts[self.config.client_host].cmd(f'{gen_file_cmd}')
         self.scp_files.append(f'{target_file_name}')

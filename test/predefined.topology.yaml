@@ -111,11 +111,11 @@ topology:
       - link_loss:
         init_value: [0]
         step_len: 2
-        step_num: 5
+        step_num: 1
       - link_latency:
         init_value: [10]
         step_len: 20
-        step_num: 5
+        step_num: 1
       - link_jitter:
         init_value: [0]
       - link_bandwidth_forward:

@@ -34,54 +34,91 @@ def build_topology_map(tops):
 
 def render_throughput_table(md: str, topo_map):
     """
-    Parse the markdown throughput table and render an HTML table.
+    Parse the markdown throughput tables (one per protocol) and render HTML.
+    The markdown may contain headings (### protocol_name) followed by tables.
     Link each numeric cell to corresponding topology anchor if found.
     """
-    lines = [ln.strip() for ln in md.splitlines() if ln.strip()]
-    table_lines = [ln for ln in lines if ln.startswith("|")]
-    if not table_lines:
+    sections = split_md_sections(md)
+    if not sections:
         return "<pre>{}</pre>".format(html.escape(md))
 
-    header = [c.strip() for c in table_lines[0].strip().strip("|").split("|")]
-    latencies = []
-    for h in header[1:]:
-        m = re.match(r"(\d+)\s*ms", h)
-        latencies.append(int(m.group(1)) if m else None)
-
-    data_rows = []
-    for ln in table_lines[1:]:
-        if re.match(r'^\|\s*-+', ln):  # separator row
+    html_parts = []
+    for title, table_md in sections:
+        if title:
+            html_parts.append(f"<h3>{html.escape(title)}</h3>")
+        lines = [ln.strip() for ln in table_md.splitlines() if ln.strip()]
+        table_lines = [ln for ln in lines if ln.startswith("|")]
+        if not table_lines:
+            html_parts.append("<pre>{}</pre>".format(html.escape(table_md)))
             continue
-        cols = [c.strip() for c in ln.strip().strip("|").split("|")]
-        data_rows.append(cols)
 
-    html_t = ["<table>"]
-    html_t.append("<thead><tr>")
-    for col in header:
-        html_t.append(f"<th>{html.escape(col)}</th>")
-    html_t.append("</tr></thead>")
-    html_t.append("<tbody>")
-    for row in data_rows:
-        if not row:
-            continue
-        loss_txt = row[0]
-        m_loss = re.match(r'(\d+(?:\.\d+)?)\s*%', loss_txt)
-        loss_val = round(float(m_loss.group(1)), 1) if m_loss else None
-        html_t.append("<tr>")
-        html_t.append(f"<td>{html.escape(loss_txt)}</td>")
-        for i, cell in enumerate(row[1:]):
-            lat = latencies[i] if i < len(latencies) else None
-            link_html = html.escape(cell)
-            if loss_val is not None and lat is not None:
-                key = (loss_val, lat)
-                topo_num = topo_map.get(key)
-                if topo_num is not None:
-                    anchor = f"topology-{topo_num}"
-                    link_html = f"<a href='#{anchor}'>{html.escape(cell)}</a>"
-            html_t.append(f"<td>{link_html}</td>")
-        html_t.append("</tr>")
-    html_t.append("</tbody></table>")
-    return "\n".join(html_t)
+        header = [c.strip() for c in table_lines[0].strip().strip("|").split("|")]
+        latencies = []
+        for h in header[1:]:
+            m = re.match(r"(\d+)\s*ms", h)
+            latencies.append(int(m.group(1)) if m else None)
+
+        data_rows = []
+        for ln in table_lines[1:]:
+            if re.match(r'^\|\s*-+', ln):  # separator row
+                continue
+            cols = [c.strip() for c in ln.strip().strip("|").split("|")]
+            data_rows.append(cols)
+
+        html_t = ["<table>"]
+        html_t.append("<thead><tr>")
+        for col in header:
+            html_t.append(f"<th>{html.escape(col)}</th>")
+        html_t.append("</tr></thead>")
+        html_t.append("<tbody>")
+        for row in data_rows:
+            if not row:
+                continue
+            loss_txt = row[0]
+            m_loss = re.match(r'(\d+(?:\.\d+)?)\s*%', loss_txt)
+            loss_val = round(float(m_loss.group(1)), 1) if m_loss else None
+            html_t.append("<tr>")
+            html_t.append(f"<td>{html.escape(loss_txt)}</td>")
+            for i, cell in enumerate(row[1:]):
+                lat = latencies[i] if i < len(latencies) else None
+                link_html = html.escape(cell)
+                if loss_val is not None and lat is not None:
+                    key = (loss_val, lat)
+                    topo_num = topo_map.get(key)
+                    if topo_num is not None:
+                        anchor = f"topology-{topo_num}"
+                        link_html = f"<a href='#{anchor}'>{html.escape(cell)}</a>"
+                html_t.append(f"<td>{link_html}</td>")
+            html_t.append("</tr>")
+        html_t.append("</tbody></table>")
+        html_parts.append("\n".join(html_t))
+
+    return "\n".join(html_parts)
+
+
+def split_md_sections(md: str):
+    """Split markdown content into (heading, table_text) sections.
+
+    If the markdown starts with a table (no heading), the heading is empty.
+    Headings are lines starting with ``###``.
+    """
+    sections = []
+    current_title = ""
+    current_lines = []
+    for line in md.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("###"):
+            # save previous section if it has content
+            if current_lines:
+                sections.append((current_title, "\n".join(current_lines)))
+            current_title = stripped.lstrip("#").strip()
+            current_lines = []
+        else:
+            if stripped:
+                current_lines.append(line)
+    if current_lines:
+        sections.append((current_title, "\n".join(current_lines)))
+    return sections
 
 
 def md_table_to_html(md: str) -> str:
@@ -239,10 +276,12 @@ def generate_index(base_dir: str):
         if m:
             num = m.group(1)
             display_name = f"{num}. topology"
+            anchor_id = t.name  # e.g. "topology-0"
         else:
             display_name = t.name
+            anchor_id = t.name
         html_lines.append(
-            f"<h2 id='{html.escape(display_name)}'>{html.escape(display_name)}</h2>")
+            f"<h2 id='{html.escape(anchor_id)}'>{html.escape(display_name)}</h2>")
         # if full description exists and has more than the short line, show it (no extra heading)
         html_lines.append("<h3>Description</h3>")
         if desc:

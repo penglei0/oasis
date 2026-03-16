@@ -12,32 +12,32 @@
     },
     {
       "matrix_type": 1,
-      "description": "Bandwidth matrix for the 2-path QUIC multipath mesh (1000)",
+      "description": "Bandwidth matrix for the 2-path QUIC multipath mesh (100)",
       "matrix_data": [
-        [0, 1000, 1000, 0],
-        [1000, 0, 0, 1000],
-        [1000, 0, 0, 1000],
-        [0, 1000, 1000, 0]
+        [0, 100, 100, 0],
+        [100, 0, 0, 100],
+        [100, 0, 0, 100],
+        [0, 100, 100, 0]
       ]
     },
     {
       "matrix_type": 2,
-      "description": "Loss matrix for the 2-path QUIC multipath mesh (0%)",
+      "description": "Loss matrix for the 2-path QUIC multipath mesh (5%)",
       "matrix_data": [
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0.5, 0, 0, 0.5],
-        [0, 0.5, 0.5, 0]
+        [0, 2.5, 2.5, 0],
+        [2.5, 0, 0, 2.5],
+        [2.5, 0, 0, 2.5],
+        [0, 2.5, 2.5, 0]
       ]
     },
     {
       "matrix_type": 3,
       "description": "Latency matrix for the 2-path QUIC multipath mesh (25ms)",
       "matrix_data": [
-        [0, 25, 25, 0],
-        [25, 0, 0, 25],
-        [25, 0, 0, 25],
-        [0, 25, 25, 0]
+        [0, 5, 5, 0],
+        [5, 0, 0, 5],
+        [5, 0, 0, 5],
+        [0, 5, 5, 0]
       ]
     },
     {

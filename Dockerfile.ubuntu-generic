@@ -5,8 +5,8 @@ ENV VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:${PATH}"
 
 # RUN cp /etc/apt/sources.list /etc/apt/sources.list.bak && \
-#     sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list && \
-#     sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list
+#         sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list && \
+#         sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|g' /etc/apt/sources.list
 
 RUN set -eux; \
         apt-get update; \
@@ -17,34 +17,20 @@ RUN set -eux; \
             net-tools \
             iproute2 \
             iputils-ping \
-            python3 \
             libatomic1 \
             iperf3 \
-            python3-pip \
-            python3-venv \
             openssh-server \
             sysstat \
             curl \
-            gdb \
             bmon \
             libevent-dev
 
-## install olsr tools, iptables, tcpdump
+## install olsr tools, iptables
 RUN set -eux; \
         if ! apt-get install --yes netcat-openbsd; then \
             apt-get install --yes netcat || { echo "Failed to install netcat-openbsd or netcat fallback packages."; exit 1; }; \
         fi; \
-        apt-get install --yes \
-            tcpdump \
-            iptables
-
-COPY docker/requirements/ubuntu-generic.txt /tmp/image-requirements.txt
-RUN python3 -m venv "${VIRTUAL_ENV}" \
-        && "${VIRTUAL_ENV}/bin/python3" -m pip install --upgrade pip \
-        && "${VIRTUAL_ENV}/bin/python3" -m pip install --no-cache-dir -r /tmp/image-requirements.txt \
-        && rm -f /tmp/image-requirements.txt
-
-# install with mirror: -i https://pypi.tuna.tsinghua.edu.cn/simple
+        apt-get install --yes iptables
 
 ## Cleanup
 RUN set -eux; \

@@ -3,6 +3,8 @@ import sys
 import copy
 import logging
 import multiprocessing
+import pkgutil
+import importlib
 from multiprocessing import Manager
 import yaml
 
@@ -10,12 +12,9 @@ from interfaces.network_mgr import INetworkManager
 from interfaces.network import INetwork
 from core.topology import ITopology
 from testsuites.test import (
-    ITestSuite, TestType, TestConfig, test_type_str_mapping)
-from testsuites.test_iperf import IperfTest
-from testsuites.test_iperf_bats import IperfBatsTest
-from testsuites.test_ping import PingTest
-from testsuites.test_rtt import RTTTest
-from testsuites.test_scp import ScpTest
+    ITestSuite, TestType, test_type_str_mapping,
+    load_test_suite_from_registry)
+import testsuites
 from testsuites.test_regular import RegularTest
 from testsuites.test_competition import (
     FlowCompetitionTest, FlowCompetitionConfig, FlowParameter)
@@ -30,6 +29,35 @@ from protosuites.bats.bats_brtp_proxy import BRTPProxy
 from data_analyzer.analyzer import AnalyzerConfig
 from data_analyzer.analyzer_factory import AnalyzerFactory
 from var.settings import DEFAULT_ROOT_PATH
+
+_TESTSUITES_DISCOVERED = False
+
+
+def _ensure_testsuites_discovered() -> None:
+    """Dynamically import all testsuites.test_* modules to trigger registration.
+
+    This avoids having to hard-code imports for each built-in test suite
+    and ensures that any new testsuites/test_<tool>.py module is picked up
+    automatically the first time tests are loaded.
+    """
+    global _TESTSUITES_DISCOVERED  # pylint: disable=global-statement
+    if _TESTSUITES_DISCOVERED:
+        return
+
+    try:
+        prefix = testsuites.__name__ + "."
+        for _finder, name, _ispkg in pkgutil.iter_modules(testsuites.__path__, prefix):
+            # Only import test suite modules following the test_* naming convention
+            base_name = name.rsplit(".", 1)[-1]
+            if not base_name.startswith("test_"):
+                continue
+            try:
+                importlib.import_module(name)
+            except Exception:  # pragma: no cover - defensive logging
+                logging.warning("Failed to import test suite module '%s'", name, exc_info=True)
+    finally:
+        _TESTSUITES_DISCOVERED = True
+
 
 supported_execution_mode = ["serial", "parallel"]
 
@@ -94,36 +122,20 @@ def diagnostic_test_results(test_results, top_des):
 
 
 def load_test_tool(tool, test_name, root_path=DEFAULT_ROOT_PATH) -> ITestSuite:
-    test_conf = TestConfig(
-        name=tool['name'],
-        test_name=test_name,
-        interval=tool['interval'] if 'interval' in tool else 1.0,
-        interval_num=tool['interval_num'] if 'interval_num' in tool else 10,
-        parallel=tool['parallel'] if 'parallel' in tool else 1,
-        packet_type=tool['packet_type'] if 'packet_type' in tool else 'tcp',
-        bitrate=tool['bitrate'] if 'bitrate' in tool else 0,
-        client_host=tool['client_host'], server_host=tool['server_host'],
-        args=tool['args'] if 'args' in tool else '',
-        root_path=root_path)
-    if tool['name'] == 'bats_iperf':
-        test_conf.test_type = TestType.throughput
-        return IperfBatsTest(test_conf)
-    if 'iperf' in tool['name']:
-        test_conf.test_type = TestType.throughput
-        return IperfTest(test_conf)
-    if tool['name'] == 'ping':
-        test_conf.test_type = TestType.latency
-        return PingTest(test_conf)
-    if tool['name'] == 'rtt':
-        test_conf.packet_count = tool['packet_count']
-        test_conf.packet_size = tool['packet_size']
-        test_conf.test_type = TestType.rtt
-        return RTTTest(test_conf)
-    if tool['name'] == 'scp':
-        test_conf.file_size = tool['file_size'] if 'file_size' in tool else 1
-        test_conf.test_type = TestType.scp
-        return ScpTest(test_conf)
-    return RegularTest(test_conf)
+    """Create an ``ITestSuite`` instance from a YAML tool dictionary.
+
+    Resolution is delegated to the :func:`load_test_suite_from_registry`
+    lookup.  If no registered test suite matches, :class:`RegularTest` is
+    used as the default fallback.
+    """
+    # Ensure all testsuites.test_* modules are imported so their decorators run
+    _ensure_testsuites_discovered()
+    # Try the registry first (exact match, then 'contains' match)
+    suite = load_test_suite_from_registry(tool, test_name, root_path)
+    if suite is not None:
+        return suite
+    # Fallback: generic RegularTest
+    return RegularTest.from_tool_dict(tool, test_name, root_path)
 
 
 def load_predefined_protocols(config_base_path):
