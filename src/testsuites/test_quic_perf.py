@@ -166,6 +166,8 @@ class QuicPerfTest(ITestSuite):
         try:
             client.cmd('pkill -9 -f quic_perf')
             server.cmd('pkill -9 -f quic_perf')
+            if relay is not None:
+                relay.cmd('pkill -9 -f quic_perf')
         finally:
             # Nothing additional here; `finally` ensures cleanup attempts run.
             pass
