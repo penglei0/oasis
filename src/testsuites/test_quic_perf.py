@@ -43,6 +43,7 @@ class QuicPerfTest(ITestSuite):
             interval_num=tool.get('interval_num', 10),
             client_host=tool.get('client_host'),
             server_host=tool.get('server_host'),
+            relay_host=tool.get('relay_host', None),
             args=tool.get('args', ''),
             multipath=tool.get('multipath', False),
             test_type=TestType.throughput,
@@ -67,34 +68,55 @@ class QuicPerfTest(ITestSuite):
 
         client = hosts[self.config.client_host]
         server = hosts[self.config.server_host]
+        relay = hosts[self.config.relay_host] if self.config.relay_host is not None else None
 
+        if relay is not None and 'Linear' not in network.get_topology_description():
+            logging.warning("Relay host specified but topology is not linear. This may not work as intended.")
+        if relay is not None and self.config.multipath:
+            logging.warning("Multipath mode enabled with a relay host. This may not work as intended.")
+
+        logging.info("QuicPerfTest client: %s, server: %s, relay: %s",
+                     client.name(), server.name(), relay.name() if relay else "None")
         logging.info(
             "############### Oasis QuicPerfTest from %s to %s ###############",
             client.name(), server.name())
         return self._run_quic_perf(
             client,
             server,
+            relay,
             (
                 proto_info.get_protocol_args(network),
                 proto_info.get_protocol_name(),
             ),
         )
 
-    def _run_quic_perf(self, client, server, protocol):
+    def _run_quic_perf(self, client, server, relay, protocol):
         """Start the quic_perf server, run the client, then clean up."""
         if self.config is None:
             logging.error("QuicPerfTest config is None.")
             return False
         proto_args, proto_name = protocol
         base_path = os.path.dirname(os.path.abspath(self.result.record))
+        # --- start relay ---------------------------------------------------
+        if relay is not None:
+            relay_log_path = os.path.join(
+                base_path, f"{proto_name}/log/{relay.name()}_quic_perf.log")
+            relay_cmd = f'quic_perf --mode relay --addr 0.0.0.0 --port 12345 --log {relay_log_path}'
+            logging.info('quic_perf relay cmd: %s', relay_cmd)
+            relay.cmd(f'{relay_cmd} &')
+            time.sleep(1)  # give the relay a moment to start
+
         # --- start server ---------------------------------------------------
         server_log_path = os.path.join(
             base_path, f"{proto_name}/log/{server.name()}_quic_perf.log")
-        server_cmd = (
-            f'quic_perf --mode server --addr 0.0.0.0'
-            f' --log {server_log_path}'
-            f' --log-interval {self.result.record}'
-        )
+        server_cmd = f'quic_perf --mode server'
+        if relay is not None:
+            server_cmd += f' --relay-addr {relay.IP()} --relay-port 12345'
+            server_cmd += f' --relay-register receiver-1:demo-token'
+        else:
+            server_cmd += f' --addr 0.0.0.0'
+        server_cmd += f' --log {server_log_path}'
+        server_cmd += f' --log-interval {self.result.record}'
         if self.config.multipath:
             server_cmd += ' --multipath'
         if proto_args:
@@ -115,7 +137,11 @@ class QuicPerfTest(ITestSuite):
                         server.name(), intf.name, intf.ip)
                 client_cmd += f' {intf.ip}'
         else:
-            client_cmd += f' --addr {server.IP()}'
+            if relay is not None:
+                client_cmd += f' --relay-addr {relay.IP()} --relay-port 12345'
+                client_cmd += f' --relay-register sender-1:demo-token'
+            else:
+                client_cmd += f' --addr {server.IP()}'
         if proto_args:
             client_cmd += f' {proto_args}'
         if self.config.args:

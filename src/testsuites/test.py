@@ -58,6 +58,7 @@ class TestConfig:
         test_type:    The :class:`TestType` that selects the analyzer.
         client_host:  Host index that acts as the traffic sender.
         server_host:  Host index that acts as the traffic receiver.
+        relay_host:   Host index that acts as the relay (for multi-hop protocols/tests).
         allow_fail:   When *True* a failure does not abort the run.
         args:         Free-form extra arguments forwarded to the tool.
         multipath:    Enable the tool's multipath mode when supported.
@@ -77,6 +78,7 @@ class TestConfig:
     test_type: Optional[TestType] = field(default=TestType.throughput)
     client_host: Optional[int] = field(default=None)
     server_host: Optional[int] = field(default=None)
+    relay_host: Optional[int] = field(default=None)
     allow_fail: Optional[bool] = field(default=False)
     args: Optional[str] = field(default="")  # args for test tool
     multipath: Optional[bool] = field(default=False)
