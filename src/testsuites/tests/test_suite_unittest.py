@@ -463,12 +463,12 @@ class TestFromToolDict(unittest.TestCase):
         ]
 
         self.assertTrue(suite._run_quic_perf(
-            client, server, ('10.0.0.2', 4433), ('--dgram', 'quic-datagram')))
+            client, server, None, ('--dgram', 'quic-datagram')))
 
         server_cmd = server.cmd.call_args_list[0].args[0]
         client_cmd = client.popen.call_args.args[0]
         self.assertIn('--multipath', server_cmd)
-        self.assertIn('--multipath', client_cmd)
+        self.assertIn('--server-list', client_cmd)
 
 
 try:
