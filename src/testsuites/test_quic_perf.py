@@ -133,7 +133,7 @@ class QuicPerfTest(ITestSuite):
         if self.config.multipath:
             client_cmd += ' --server-list'
             for intf in server.getIntfs():
-                logging.info("QuicPerfTest client connect to %s intf %s IP %s", 
+                logging.info("QuicPerfTest client connect to %s intf %s IP %s",
                         server.name(), intf.name, intf.ip)
                 client_cmd += f' {intf.ip}'
         else:
