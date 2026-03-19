@@ -58,7 +58,7 @@ topology:
         init_value: [100]
       - link_bandwidth_backward:
         init_value: [100]
-  - name: A_B_C
+  - name: h0_h1_h2
     topology_type: linear
     nodes: 3
     array_description:
