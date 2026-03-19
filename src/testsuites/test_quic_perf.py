@@ -68,7 +68,16 @@ class QuicPerfTest(ITestSuite):
 
         client = hosts[self.config.client_host]
         server = hosts[self.config.server_host]
-        relay = hosts[self.config.relay_host] if self.config.relay_host is not None else None
+        relay = None
+        if self.config.relay_host is not None:
+            if 0 <= self.config.relay_host < len(hosts):
+                relay = hosts[self.config.relay_host]
+            else:
+                logging.error(
+                    "Configured relay_host index %s is out of range for %d hosts; ignoring relay host.",
+                    self.config.relay_host,
+                    len(hosts),
+                )
 
         if relay is not None and 'Linear' not in network.get_topology_description():
             logging.warning("Relay host specified but topology is not linear. This may not work as intended.")
