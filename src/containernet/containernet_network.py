@@ -316,6 +316,7 @@ class ContainerizedNetwork (INetwork):
         link = self.containernet.addLink(
             self.hosts[id1].get_host(),
             self.hosts[id2].get_host(), cls=None, **params)
+        self.pair_to_link[(self.hosts[id1], self.hosts[id2])] = link
         # apply the traffic shaping on the ingress interface.
         self._bandwidth_limit_on_egress(link, id1, id2)
         # direction from host1 to host2, setup ifb on host2
@@ -453,13 +454,13 @@ class ContainerizedNetwork (INetwork):
             host.cmd('ip route flush table main')
             host.cleanup()
         # remove all links
-        for i in range(num - 1):
+        for host1, host2 in self.pair_to_link:
             logging.info("removeLink: %s-%s",
-                         self.hosts[i].name(),
-                         self.hosts[i+1].name())
+                         host1.name(),
+                         host2.name())
             self.containernet.removeLink(
-                node1=self.hosts[i].name(),
-                node2=self.hosts[i+1].name())
+                node1=host1.name(),
+                node2=host2.name())
         # remove all routes.
         logging.info("Oasis reset the routes and interfaces.")
         for host in self.hosts:
