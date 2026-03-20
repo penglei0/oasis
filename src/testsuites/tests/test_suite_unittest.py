@@ -378,6 +378,26 @@ class TestFromToolDict(unittest.TestCase):
         self.assertEqual(suite.config.packet_type, 'tcp')
         self.assertEqual(suite.config.bitrate, 0)
 
+    @patch('testsuites.test_iperf.time.sleep', return_value=None)
+    def test_iperf_run_tolerates_non_utf8_output(self, _sleep):
+        tool = {'name': 'iperf', 'client_host': 0, 'server_host': 1}
+        suite = IperfTest.from_tool_dict(tool, 'test1', self.root_path)
+        suite.result.record = os.path.join(self.root_path, 'iperf.log')
+
+        client = MagicMock()
+        client.name.return_value = 'h0'
+        client.popen.return_value.stdout.read.return_value = (
+            b'iperf output line\xee with invalid byte')
+        server = MagicMock()
+        server.name.return_value = 'h1'
+
+        self.assertTrue(suite._run_iperf(client, server, 5201, '10.0.0.2'))
+        self.assertIn('iperf3 -c 10.0.0.2 -p 5201', client.popen.call_args.args[0])
+        client.cmd.assert_called_once_with('pkill -9 -f iperf3')
+        server.cmd.assert_any_call('iperf3 -s -p 5201 -i 1 -V --forceflush'
+                                   f' --logfile {suite.result.record} &')
+        server.cmd.assert_any_call('pkill -9 -f iperf3')
+
     def test_bats_iperf_from_tool_dict(self):
         tool = {'name': 'bats_iperf', 'client_host': 0, 'server_host': 3}
         suite = IperfBatsTest.from_tool_dict(tool, 'test1', self.root_path)

@@ -74,7 +74,7 @@ class IperfTest(ITestSuite):
                 iperf3_client_cmd += f' -b {self.config.bitrate}M'
         logging.info('iperf client cmd: %s', iperf3_client_cmd)
         res = client.popen(
-            f'{iperf3_client_cmd}').stdout.read().decode('utf-8')
+            f'{iperf3_client_cmd}').stdout.read().decode('utf-8', errors='replace')
         logging.info('iperf client output: %s', res)
         logging.info('iperf test result save to %s', self.result.record)
         time.sleep(1)
