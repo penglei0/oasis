@@ -141,3 +141,8 @@ topology:
     topology_type: mesh
     nodes: 4
     json_description: quic-multipath-2paths-p0-p1.json
+  - name: path2-p1-p1
+    topology_type: mesh
+    nodes: 4
+    json_description: quic-multipath-2paths-p1-p1.json
+
