@@ -391,8 +391,11 @@ class TestFromToolDict(unittest.TestCase):
         server = MagicMock()
         server.name.return_value = 'h1'
 
-        self.assertTrue(suite._run_iperf(client, server, 5201, '10.0.0.2'))
+        with self.assertLogs(level='INFO') as cm:
+            self.assertTrue(suite._run_iperf(client, server, 5201, '10.0.0.2'))
         self.assertIn('iperf3 -c 10.0.0.2 -p 5201', client.popen.call_args.args[0])
+        self.assertTrue(any('iperf output line� with invalid byte' in msg
+                            for msg in cm.output))
         client.cmd.assert_called_once_with('pkill -9 -f iperf3')
         server.cmd.assert_any_call('iperf3 -s -p 5201 -i 1 -V --forceflush'
                                    f' --logfile {suite.result.record} &')
