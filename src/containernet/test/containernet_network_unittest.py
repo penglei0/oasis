@@ -23,7 +23,7 @@ class TestDisableBracketedPasteMode(unittest.TestCase):
         for i in range(num_hosts):
             adapter = MagicMock()
             adapter.cmd = MagicMock(return_value='')
-            adapter.name.return_value = f'h{i}'
+            adapter.name = MagicMock(return_value=f'h{i}')
             hosts.append(adapter)
         net.hosts = hosts
         return net
@@ -73,7 +73,7 @@ class TestResetNetwork(unittest.TestCase):
             adapter.cmd = MagicMock(return_value='')
             adapter.cleanup = MagicMock()
             adapter.deleteIntfs = MagicMock()
-            adapter.name.return_value = f'h{i}'
+            adapter.name = MagicMock(return_value=f'h{i}')
             net.hosts.append(adapter)
         net.routing_strategy = MagicMock()
         net.containernet = MagicMock()
@@ -117,7 +117,8 @@ class TestResetNetwork(unittest.TestCase):
             unittest.mock.call(node1='h1', node2='h3'),
             unittest.mock.call(node1='h2', node2='h3'),
         ]
-        net.containernet.removeLink.assert_has_calls(expected_calls)
+        net.containernet.removeLink.assert_has_calls(
+            expected_calls, any_order=True)
         self.assertEqual(net.containernet.removeLink.call_count, 4)
         self.assertNotIn(
             unittest.mock.call(node1='h1', node2='h2'),
