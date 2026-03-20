@@ -62,5 +62,67 @@ class TestDisableBracketedPasteMode(unittest.TestCase):
             host.cmd.assert_not_called()
 
 
+class TestResetNetwork(unittest.TestCase):
+    """Verify reload teardown removes the links that were actually added."""
+
+    def _make_network_with_hosts(self, num_hosts):
+        net = object.__new__(ContainerizedNetwork)
+        net.hosts = []
+        for i in range(num_hosts):
+            adapter = MagicMock()
+            adapter.cmd = MagicMock(return_value='')
+            adapter.cleanup = MagicMock()
+            adapter.deleteIntfs = MagicMock()
+            adapter.name.return_value = f'h{i}'
+            net.hosts.append(adapter)
+        net.routing_strategy = MagicMock()
+        net.containernet = MagicMock()
+        net.num_of_hosts = num_hosts
+        net.pair_to_link = {}
+        net.pair_to_link_ip = {}
+        return net
+
+    def test_add_link_records_link_for_future_reset(self):
+        """Added links should be tracked so reload can remove them later."""
+        net = self._make_network_with_hosts(3)
+        for host in net.hosts:
+            host.get_host.return_value = MagicMock()
+        net._bandwidth_limit_on_egress = MagicMock()
+        net._traffic_shaping_on_ingress = MagicMock()
+        link = MagicMock()
+        link.intf1.name = 'h0-eth0'
+        link.intf2.name = 'h2-eth0'
+        net.containernet.addLink.return_value = link
+
+        returned_link = net._addLink(0, 2, params1={'ip': '10.0.0.1/24'})
+
+        self.assertIs(returned_link, link)
+        self.assertEqual(net.pair_to_link, {(net.hosts[0], net.hosts[2]): link})
+
+    def test_reset_network_removes_existing_mesh_links(self):
+        """Reset should remove the exact mesh links instead of assuming a chain."""
+        net = self._make_network_with_hosts(4)
+        net.pair_to_link = {
+            (net.hosts[0], net.hosts[1]): MagicMock(),
+            (net.hosts[0], net.hosts[2]): MagicMock(),
+            (net.hosts[1], net.hosts[3]): MagicMock(),
+            (net.hosts[2], net.hosts[3]): MagicMock(),
+        }
+
+        net._reset_network(4, 0)
+
+        expected_calls = [
+            unittest.mock.call(node1='h0', node2='h1'),
+            unittest.mock.call(node1='h0', node2='h2'),
+            unittest.mock.call(node1='h1', node2='h3'),
+            unittest.mock.call(node1='h2', node2='h3'),
+        ]
+        net.containernet.removeLink.assert_has_calls(expected_calls)
+        self.assertEqual(net.containernet.removeLink.call_count, 4)
+        self.assertNotIn(
+            unittest.mock.call(node1='h1', node2='h2'),
+            net.containernet.removeLink.call_args_list)
+
+
 if __name__ == '__main__':
     unittest.main()
