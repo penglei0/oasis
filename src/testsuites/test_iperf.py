@@ -2,7 +2,10 @@ import logging
 import time
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
-from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
+from .test import (
+    ITestSuite, TestConfig, TestType, decode_subprocess_output,
+    register_test_suite,
+)
 
 
 @register_test_suite('iperf', match='contains', test_type=TestType.throughput)
@@ -74,7 +77,8 @@ class IperfTest(ITestSuite):
                 iperf3_client_cmd += f' -b {self.config.bitrate}M'
         logging.info('iperf client cmd: %s', iperf3_client_cmd)
         res = client.popen(
-            f'{iperf3_client_cmd}').stdout.read().decode('utf-8', errors='replace')
+            f'{iperf3_client_cmd}').stdout.read()
+        res = decode_subprocess_output(res)
         logging.info('iperf client output: %s', res)
         logging.info('iperf test result save to %s', self.result.record)
         time.sleep(1)

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from testsuites.test import (
     TestConfig, TestType, ITestSuite, PROXY_PROTOCOLS,
+    decode_subprocess_output,
     register_test_suite, get_test_suite_registry,
     load_test_suite_from_registry, _TEST_SUITE_REGISTRY,
 )
@@ -129,6 +130,16 @@ class TestProxyProtocolsConstant(unittest.TestCase):
 
     def test_tcp_not_in_set(self):
         self.assertNotIn("TCP", PROXY_PROTOCOLS)
+
+
+class TestDecodeSubprocessOutput(unittest.TestCase):
+    """decode_subprocess_output should tolerate invalid bytes."""
+
+    def test_invalid_utf8_bytes_are_replaced(self):
+        decoded = decode_subprocess_output(
+            b'iperf output line\xff\xfe with invalid bytes')
+        self.assertEqual(
+            decoded, 'iperf output line\ufffd\ufffd with invalid bytes')
 
 
 class TestDefaultClientServer(unittest.TestCase):
@@ -400,6 +411,31 @@ class TestFromToolDict(unittest.TestCase):
         server.cmd.assert_any_call('iperf3 -s -p 5201 -i 1 -V --forceflush'
                                    f' --logfile {suite.result.record} &')
         server.cmd.assert_any_call('pkill -9 -f iperf3')
+
+    @patch('testsuites.test_iperf_bats.time.sleep', return_value=None)
+    def test_bats_iperf_run_tolerates_non_utf8_output(self, _sleep):
+        tool = {'name': 'bats_iperf', 'client_host': 0, 'server_host': 1}
+        suite = IperfBatsTest.from_tool_dict(tool, 'test1', self.root_path)
+        suite.result.record = os.path.join(self.root_path, 'bats_iperf.log')
+
+        client = MagicMock()
+        client.name.return_value = 'h0'
+        client.popen.return_value.stdout.read.return_value = (
+            b'bats iperf output\xff\xfe')
+        server = MagicMock()
+        server.name.return_value = 'h1'
+        server.IP.return_value = '10.0.0.2'
+        server.getIntfs.return_value = ['eth0']
+
+        with self.assertLogs(level='INFO') as cm:
+            self.assertTrue(
+                suite._run_iperf(client, server, '-m 0', 'btp'))
+        self.assertIn('bats_iperf -c 10.0.0.2 -m 0 -p 5201',
+                      client.popen.call_args.args[0])
+        self.assertTrue(any('bats iperf output\ufffd\ufffd' in msg
+                            for msg in cm.output))
+        client.cmd.assert_called_once_with('pkill -9 -f bats_iperf')
+        server.cmd.assert_any_call('pkill -9 -f bats_iperf')
 
     def test_bats_iperf_from_tool_dict(self):
         tool = {'name': 'bats_iperf', 'client_host': 0, 'server_host': 3}

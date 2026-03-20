@@ -7,7 +7,9 @@ from typing import Optional, List
 
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
-from .test import (ITestSuite, test_type_str_mapping)
+from .test import (
+    ITestSuite, decode_subprocess_output, test_type_str_mapping,
+)
 
 
 @dataclass
@@ -100,11 +102,12 @@ class FlowCompetitionTest(ITestSuite):
         if 'tcp' in flow.flow_type:
             if cc is None:
                 res = client.popen(
-                    f'iperf3 -c {server_ip} -p 5001 -i 1 -t {int(flow.duration)}').stdout.read().decode('utf-8')
+                    f'iperf3 -c {server_ip} -p 5001 -i 1 -t {int(flow.duration)}').stdout.read()
             else:
                 res = client.popen(
                     f'iperf3 -c {server_ip} -p 5001 -i 1 -t '
-                    f'{int(flow.duration)} --congestion {cc}').stdout.read().decode('utf-8')
+                    f'{int(flow.duration)} --congestion {cc}').stdout.read()
+            res = decode_subprocess_output(res)
             logging.info('iperf client output: %s', res)
         if flow.flow_type in ('btp', 'brtp'):
             for intf in server.getIntfs():
@@ -124,7 +127,8 @@ class FlowCompetitionTest(ITestSuite):
                 f' -i 1 -t {int(flow.duration)}'
             logging.info('bats_iperf client cmd: %s', bats_iperf_client_cmd)
             res = client.popen(
-                f'{bats_iperf_client_cmd}').stdout.read().decode('utf-8')
+                f'{bats_iperf_client_cmd}').stdout.read()
+            res = decode_subprocess_output(res)
         logging.info(
             "Finished competition flow: %s -> %s", client.name(), server.name())
 
