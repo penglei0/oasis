@@ -3,7 +3,10 @@ import time
 import os
 from interfaces.network import INetwork
 from protosuites.proto_info import IProtoInfo
-from .test import (ITestSuite, TestConfig, TestType, register_test_suite)
+from .test import (
+    ITestSuite, TestConfig, TestType, decode_subprocess_output,
+    register_test_suite,
+)
 
 
 @register_test_suite('bats_iperf', test_type=TestType.throughput)
@@ -70,7 +73,8 @@ class IperfBatsTest(ITestSuite):
             f' -i {float(interval)} -t {int(interval_num)} -L {client_log_path}'
         logging.info('bats_iperf client cmd: %s', bats_iperf_client_cmd)
         res = client.popen(
-            f'{bats_iperf_client_cmd}').stdout.read().decode('utf-8')
+            f'{bats_iperf_client_cmd}').stdout.read()
+        res = decode_subprocess_output(res)
         logging.info('bats_iperf client output: %s', res)
         logging.info('bats_iperf test result save to %s', self.result.record)
         time.sleep(1)

@@ -35,6 +35,11 @@ test_type_str_mapping = {
 PROXY_PROTOCOLS = frozenset({"KCP", "QUIC"})
 
 
+def decode_subprocess_output(output: bytes, encoding: str = 'utf-8') -> str:
+    """Decode subprocess output while tolerating malformed bytes."""
+    return output.decode(encoding, errors='replace')
+
+
 @dataclass
 class TestConfig:
     """Configuration shared by every ``ITestSuite`` implementation.
