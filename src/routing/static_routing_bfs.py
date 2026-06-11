@@ -28,6 +28,12 @@ class StaticRoutingBfs(IRoutingStrategy):
         hosts = network.get_hosts()
         self.pair_to_link_ip = network.get_link_table()
         adjacency = network.net_mat  # adjacency matrix
+        # convert adjacency to symmetric, since the link is bidirectional.
+        for i in range(len(adjacency)):
+            for j in range(i, len(adjacency)):
+                if adjacency[i][j] or adjacency[j][i]:
+                    adjacency[i][j] = 1
+                    adjacency[j][i] = 1
         num_hosts = len(hosts)
 
         # Compute next hops for all pairs using BFS

@@ -35,6 +35,7 @@ class ContainerizedNetwork (INetwork):
                  routing_strategy: IRoutingStrategy,
                  ** params) -> None:
         super().__init__(**params)
+        self.is_multihoming = False
         self.is_started_flag = False
         self.containernet = Containernet()
         self.routing_strategy = routing_strategy
@@ -162,6 +163,19 @@ class ContainerizedNetwork (INetwork):
         logging.debug('self.net_bw_mat %s', self.net_bw_mat)
         logging.debug('self.net_latency_mat %s', self.net_latency_mat)
         logging.debug('self.net_jitter_mat %s', self.net_jitter_mat)
+
+        # if net_mat is symmetric, then it is multihoming.
+        if self.net_mat is not None:
+            for i in range(len(self.net_mat)):
+                for j in range(i, len(self.net_mat)):
+                    if self.net_mat[i][j] == 1 and self.net_mat[i][j] == self.net_mat[j][i]:
+                        self.is_multihoming = True
+                        logging.info("==========================================")
+                        logging.info("Oasis detected the multihoming topology.")
+                        logging.info("==========================================")
+                        break
+                if self.is_multihoming:
+                    break
 
     def _init_containernet(self):
         self._setup_docker_nodes(0, self.num_of_hosts - 1)
@@ -343,12 +357,34 @@ class ContainerizedNetwork (INetwork):
             self.hosts[id2].get_host(), cls=None, **params)
         self.pair_to_link[(self.hosts[id1], self.hosts[id2])] = link
         # apply the traffic shaping on the ingress interface.
-        self._bandwidth_limit_on_egress(link, id1, id2)
-        # direction from host1 to host2, setup ifb on host2
-        self._traffic_shaping_on_ingress(id1, id2, link.intf2.name)
-        # direction from host2 to host1, setup ifb on host1
-        self._traffic_shaping_on_ingress(id2, id1, link.intf1.name)
+        if self.is_multihoming:
+            self._bandwidth_limit_on_egress_for_multihoming(link, id1, id2)
+            self._traffic_shaping_on_ingress(id1, id2, id2, link.intf2.name)
+            self._traffic_shaping_on_ingress(id1, id2, id1, link.intf1.name)
+        else:
+            self._bandwidth_limit_on_egress(link, id1, id2)
+            # direction from host1 to host2, setup ifb on host2
+            self._traffic_shaping_on_ingress(id1, id2, id2, link.intf2.name)
+            # direction from host2 to host1, setup ifb on host1
+            self._traffic_shaping_on_ingress(id2, id1, id1, link.intf1.name)
         return link
+
+    def _bandwidth_limit_on_egress_for_multihoming(self, link, id1, id2):
+        def __set_bw_limit_on(host, attached_inf, bw_limit):
+            host.cmd(
+                f"tc qdisc add dev {attached_inf} root handle 1: {bw_limit}")
+            logging.info(
+                "apply bandwidth limit on egress interface %s with %s", attached_inf, bw_limit)
+            return True
+        default_queueing_strategy = "pfifo"
+        bw_limit1 = default_queueing_strategy
+        bw_limit2 = default_queueing_strategy
+        if self.net_bw_mat is not None:
+            # bw from host1 to host2
+            bw_limit1 = f"tbf rate {self.net_bw_mat[id1][id2]}mbit"
+            bw_limit1 += f" burst {self.net_bw_mat[id1][id2]*1.25}kb latency 1ms"
+        __set_bw_limit_on(self.hosts[id1], link.intf1.name, bw_limit1)
+        __set_bw_limit_on(self.hosts[id2], link.intf2.name, bw_limit1)
 
     def _bandwidth_limit_on_egress(self, link, id1, id2):
         """
@@ -359,7 +395,7 @@ class ContainerizedNetwork (INetwork):
         def __set_bw_limit_on(host, attached_inf, bw_limit):
             host.cmd(
                 f"tc qdisc add dev {attached_inf} root handle 1: {bw_limit}")
-            logging.debug(
+            logging.info(
                 "apply bandwidth limit on egress interface %s with %s", attached_inf, bw_limit)
             return True
         default_queueing_strategy = "pfifo"
@@ -375,11 +411,12 @@ class ContainerizedNetwork (INetwork):
         __set_bw_limit_on(self.hosts[id1], link.intf1.name, bw_limit1)
         __set_bw_limit_on(self.hosts[id2], link.intf2.name, bw_limit2)
 
-    def _traffic_shaping_on_ingress(self, id1, id2, attached_inf):
+    def _traffic_shaping_on_ingress(self, id1, id2, target_host, attached_inf):
         """
         Apply the traffic shaping(latency,jitter,loss) on the ingress interface.
         id1: the source host id.
-        id2: the destination host id. Do the traffic shaping on `host2`.
+        id2: the destination host id. 
+        target_host: the host to apply traffic shaping. 
         attached_inf: the interface to be set with the traffic shaping. 
 
         Details of traffic shaping in Oasis, please refer to <docs/tc-strategy.md>
@@ -405,21 +442,21 @@ class ContainerizedNetwork (INetwork):
                     jitter = self.net_jitter_mat[id1][id2]
                     if jitter > 0:
                         shaping_parameters += f" {self.net_jitter_mat[id1][id2]}ms distribution normal"
-        logging.debug("shaping_parameters\"%s\"", shaping_parameters)
+        logging.info("Host %s shaping_parameters\"%s\"", self.hosts[target_host].name(), shaping_parameters)
         port = attached_inf[-1]
         ifb_interface = f"ifb{port}"
-        self.hosts[id2].cmd(
+        self.hosts[target_host].cmd(
             f"ip link add name {ifb_interface} type ifb")
-        self.hosts[id2].cmd(f"ip link set {ifb_interface} up")
-        self.hosts[id2].cmd(
+        self.hosts[target_host].cmd(f"ip link set {ifb_interface} up")
+        self.hosts[target_host].cmd(
             f"tc qdisc add dev {attached_inf} ingress")
-        self.hosts[id2].cmd(f"tc filter add dev {attached_inf} parent ffff: protocol ip u32 "
+        self.hosts[target_host].cmd(f"tc filter add dev {attached_inf} parent ffff: protocol ip u32 "
                             f"match u32 0 0 action mirred egress redirect dev {ifb_interface}")
         # @note: Limit is the number of bytes that can be queued waiting for tokens to become available.
         # The proper value for limit might be at least the **bandwidth-delay product (BDP)**,
         # which is the amount of data "in flight" on the link.
         # for a link with 4000Mbps, 100ms delay, the BDP is about 50,000,000 bytes.
-        self.hosts[id2].cmd(
+        self.hosts[target_host].cmd(
             f"tc qdisc add dev {ifb_interface} root netem{shaping_parameters} limit {current_bdp}")
         return True
 
