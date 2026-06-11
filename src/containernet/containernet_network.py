@@ -277,6 +277,7 @@ class ContainerizedNetwork (INetwork):
         ascii_topology = self.net_topology.ascii_art()
         if ascii_topology:
             logging.info("Oasis current topology:\n%s", ascii_topology)
+        # upper triangle of the adjacent matrix
         for i in range(self.num_of_hosts):
             for j in range(i, self.num_of_hosts):
                 if self.net_mat[i][j] == 1:
@@ -300,6 +301,30 @@ class ContainerizedNetwork (INetwork):
                     self.pair_to_link_ip[(
                         self.hosts[j],
                         self.hosts[i])] = ipStr(link_ip + 1)
+        # lower triangular matrix for multihoming
+        for i in range(self.num_of_hosts):
+            for j in range(i, self.num_of_hosts):
+                if self.net_mat[j][i] == 1:
+                    link_ip = next(link_subnets)
+                    left_ip = ipStr(link_ip + 1) + f'/{link_prefix}'
+                    right_ip = ipStr(link_ip + 2) + f'/{link_prefix}'
+                    logging.info(
+                        "addLink: %s(%s) <--> %s(%s)",
+                        self.hosts[j].name(),
+                        left_ip,
+                        self.hosts[i].name(),
+                        right_ip
+                    )
+                    self._addLink(j, i,
+                                  params1={'ip': left_ip},
+                                  params2={'ip': right_ip}
+                                  )
+                    self.pair_to_link_ip[(
+                        self.hosts[j],
+                        self.hosts[i])] = ipStr(link_ip + 2)
+                    self.pair_to_link_ip[(
+                        self.hosts[i],
+                        self.hosts[j])] = ipStr(link_ip + 1)
 
         for i in range(self.num_of_hosts):
             logging.debug("Oasis config ip routing for host %s",

@@ -54,15 +54,13 @@ class LinearTopology(ITopology):
         # Generate the adjacency matrix for the linear chain topology
         adj_matrix = [[0 for _ in range(num_of_nodes)]
                       for _ in range(num_of_nodes)]
+        # Limit to upper triangle matrix.
         for i in range(num_of_nodes):
             if i == 0:
                 adj_matrix[i][i+1] = 1
-            elif i == num_of_nodes - 1:
-                adj_matrix[i][i-1] = 1
-            else:
-                adj_matrix[i][i-1] = 1
+            elif i < num_of_nodes - 1:
                 adj_matrix[i][i+1] = 1
-        logging.debug("adj_matrix: %s", adj_matrix)
+        logging.info("adj_matrix: %s", adj_matrix)
         return adj_matrix
 
     def generate_other_matrices(self, adj_matrix):

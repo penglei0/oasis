@@ -5,9 +5,9 @@
       "description": "Adjacency matrix for a 2-path QUIC multipath mesh between h0 and h3",
       "matrix_data": [
         [0, 1, 1, 0],
-        [1, 0, 0, 1],
-        [1, 0, 0, 1],
-        [0, 1, 1, 0]
+        [0, 0, 0, 1],
+        [0, 0, 0, 1],
+        [0, 0, 0, 0]
       ]
     },
     {

@@ -5,10 +5,10 @@
       "description": "Adjacency matrix for a 3-path QUIC multipath mesh between host0 and host4",
       "matrix_data": [
         [0, 1, 1, 1, 0],
-        [1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1],
-        [0, 1, 1, 1, 0]
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0]
       ]
     },
     {
