@@ -145,4 +145,19 @@ topology:
     topology_type: mesh
     nodes: 4
     json_description: quic-multipath-2paths-p1-p1.json
-
+  - name: h0h1-multi-homing
+    topology_type: mesh
+    nodes: 2
+    path_description:
+      - name: rpath
+        index: 0
+        bw_vector: [100, 10]
+        rtt_vector: [100, 10]
+        loss_vector: [1, 2]
+        jitter_vector: [0]
+      - name: dpath
+        index: 1
+        bw_vector: [100]
+        rtt_vector: [100, 1]
+        loss_vector: [0]
+        jitter_vector: [0]

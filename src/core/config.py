@@ -12,6 +12,7 @@ import yaml
 from .topology import (ITopology, TopologyConfig)
 from .linear_topology import LinearTopology
 from .mesh_topology import MeshTopology
+from .multi_homing_topology import MultiHomingTopology
 
 
 @dataclass
@@ -193,6 +194,8 @@ class Test:
         if loaded_conf.topology_type == "linear":
             return LinearTopology(config_base_path, loaded_conf)
         if loaded_conf.topology_type == "mesh":
+            if loaded_conf.path_description is not None:
+                return MultiHomingTopology(config_base_path, loaded_conf, True)
             return MeshTopology(config_base_path, loaded_conf, True)
         logging.error("Unsupported topology type.")
         return None

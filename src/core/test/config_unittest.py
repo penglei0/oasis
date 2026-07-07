@@ -1,10 +1,13 @@
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from functools import reduce
+from operator import mul
 import yaml
 from src.core.config import IConfig, load_all_tests
 from src.core.config import Test, TopologyConfig
 from src.core.mesh_topology import MeshTopology
+from src.core.multi_homing_topology import MultiHomingTopology
 from src.core.topology import MatrixType, TopologyType
 
 
@@ -19,6 +22,18 @@ class TestLoadAllTests(unittest.TestCase):
         raise FileNotFoundError(
             f"Could not locate repository root starting from {current} "
             "(no .git directory found in parent directories).")
+
+    @staticmethod
+    def expected_path_description_count(path_description):
+        vector_keys = ("bw_vector", "rtt_vector", "loss_vector", "jitter_vector")
+        return reduce(
+            mul,
+            (
+                len(path[vector_key])
+                for path in path_description
+                for vector_key in vector_keys
+            ),
+            1)
 
     @patch('builtins.open')
     @patch('yaml.safe_load')
@@ -197,6 +212,74 @@ class TestLoadAllTests(unittest.TestCase):
             return total
 
         self.assertEqual(count_simple_paths(adjacency, 0, 4, set()), 3)
+
+    def test_h0h1_multi_homing_mesh_path_description_loads_sweep(self):
+        repo_root = self.find_repo_root()
+        top_config = IConfig.load_config_reference(
+            str(repo_root / 'test'),
+            'predefined.topology.yaml',
+            'h0h1-multi-homing',
+            '',
+            {},
+            'topology')
+
+        self.assertIsNotNone(top_config)
+        self.assertEqual(top_config.topology_type, 'mesh')
+
+        topology = MultiHomingTopology(str(repo_root / 'test'), top_config)
+        generated_topologies = list(topology)
+
+        self.assertEqual(
+            len(generated_topologies),
+            self.expected_path_description_count(top_config.path_description))
+        first_topology = generated_topologies[0]
+        self.assertEqual(
+            first_topology.get_matrix(MatrixType.ADJACENCY_MATRIX),
+            [
+                [0, 1],
+                [1, 0],
+            ])
+        self.assertEqual(
+            first_topology.get_matrix(MatrixType.BW_MATRIX),
+            [
+                [0, 100],
+                [100, 0],
+            ])
+        self.assertEqual(
+            first_topology.get_matrix(MatrixType.LATENCY_MATRIX),
+            [
+                [0, 100],
+                [100, 0],
+            ])
+        self.assertEqual(
+            first_topology.get_matrix(MatrixType.LOSS_MATRIX),
+            [
+                [0, 1],
+                [0, 0],
+            ])
+        self.assertEqual(
+            first_topology.get_matrix(MatrixType.JITTER_MATRIX),
+            [
+                [0, 0],
+                [0, 0],
+            ])
+
+    def test_load_topology_accepts_mesh_path_description(self):
+        repo_root = self.find_repo_root()
+        test = Test({
+            "topology": {
+                "config_file": "predefined.topology.yaml",
+                "config_name": "h0h1-multi-homing",
+            }
+        }, "h0h1-multi-homing")
+
+        topology = test.load_topology(str(repo_root / 'test'))
+
+        self.assertIsInstance(topology, MultiHomingTopology)
+        self.assertEqual(
+            len(list(topology)),
+            self.expected_path_description_count(
+                topology.top_config.path_description))
 
 
 class TestTestClass(unittest.TestCase):

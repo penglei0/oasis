@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import IntEnum
 
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
 import os
 import json
@@ -63,6 +63,8 @@ class TopologyConfig:
     array_description: Optional[List[Parameter]] = field(default=None)
     # @json_description: the json description of the topology
     json_description: Optional[str] = field(default=None)
+    # @path_description: path vectors for two-node multi-homing topology
+    path_description: Optional[List[Dict[str, Any]]] = field(default=None)
 
 
 class ITopology(ABC):
@@ -323,7 +325,13 @@ class ITopology(ABC):
 
     @staticmethod
     def _degrees(adj_matrix):
-        return [sum(row) for row in adj_matrix]
+        return [
+            sum(
+                1 for neighbor in range(len(adj_matrix))
+                if adj_matrix[node][neighbor] or adj_matrix[neighbor][node]
+            )
+            for node in range(len(adj_matrix))
+        ]
 
     def _is_connected(self, adj_matrix):
         if not adj_matrix:
