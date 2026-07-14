@@ -29,6 +29,6 @@ tests:
     build_mode: rebuild
     test_tools:
       benchmark:
-        profile: http_gooudput
+        profile: http_goodput
         client_host: 0
         server_host: 1

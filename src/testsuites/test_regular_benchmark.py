@@ -11,7 +11,7 @@ from protosuites.proto_info import IProtoInfo
 from .test import ITestSuite, TestConfig, TestType, register_test_suite
 
 
-PROFILES = frozenset({"http_latency", "http_gooudput"})
+PROFILES = frozenset({"http_latency", "http_goodput"})
 
 
 @register_test_suite("benchmark", test_type=TestType.regular_benchmark)

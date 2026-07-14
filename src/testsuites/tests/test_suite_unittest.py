@@ -522,13 +522,13 @@ class TestFromToolDict(unittest.TestCase):
     def test_regular_benchmark_from_tool_dict(self):
         tool = {
             'name': 'benchmark',
-            'profile': 'http_gooudput',
+            'profile': 'http_goodput',
             'client_host': 0,
             'server_host': 1,
         }
         suite = RegularBenchmarkTest.from_tool_dict(tool, 'test1', self.root_path)
         self.assertIsInstance(suite, RegularBenchmarkTest)
-        self.assertEqual(suite.profile, 'http_gooudput')
+        self.assertEqual(suite.profile, 'http_goodput')
         self.assertEqual(suite.config.test_type, TestType.regular_benchmark)
 
     def test_regular_benchmark_rejects_unknown_profile(self):
@@ -670,9 +670,32 @@ class TestFromToolDict(unittest.TestCase):
             result['testfile_10M']['path_distribution']['latest_share_by_type'],
             {'D': 75.0})
 
+    def test_mp_benchmark_goodput_summary_svg_includes_average_completion_time(self):
+        svg_path = Path(self.root_path) / 'http_10M_goodput_summary.svg'
+
+        mp_benchmark.write_goodput_summary_svg(
+            svg_path,
+            '10MB',
+            12.5,
+            20,
+            {'D': 80.0, 'R': 20.0},
+            [1.0, 2.0, 3.0],
+            {'count': 3, 'avg': 2.0, 'min': 1.0, 'max': 3.0,
+             'p50': 2.0, 'p95': 2.9, 'p99': 2.98},
+        )
+
+        svg = svg_path.read_text(encoding='utf-8')
+        self.assertIn('Average completion time', svg)
+        self.assertIn('>2.000<', svg)
+
     def test_mp_benchmark_sigterm_uses_graceful_shutdown_path(self):
         with self.assertRaises(KeyboardInterrupt):
             mp_benchmark._handle_shutdown_signal(15, None)
+
+    def test_mp_benchmark_display_size_label_uses_byte_suffix(self):
+        self.assertEqual(mp_benchmark.display_size_label('10K'), '10KB')
+        self.assertEqual(mp_benchmark.display_size_label('20k'), '20KB')
+        self.assertEqual(mp_benchmark.display_size_label('10M'), '10MB')
 
     @patch.object(mp_benchmark, 'wait_for_http')
     def test_mp_benchmark_http_proxy_ready_timeout_is_fixed(self, wait_for_http):
@@ -690,6 +713,25 @@ class TestFromToolDict(unittest.TestCase):
             'http://localhost:9443/testfile_10K',
             mp_benchmark.DEFAULT_PROXY_READY_TIMEOUT)
         self.assertEqual(mp_benchmark.DEFAULT_PROXY_READY_TIMEOUT, 5.0)
+
+    @patch.object(mp_benchmark, 'sleep_for_rate')
+    @patch.object(mp_benchmark, 'write_latency_svg')
+    @patch.object(mp_benchmark, 'run_command')
+    def test_mp_benchmark_http_latency_title_uses_display_size_label(
+            self, run_command, write_latency_svg, _sleep_for_rate):
+        run_command.return_value = SimpleNamespace(
+            returncode=0, stdout='0.001 200', stderr='')
+        config = mp_benchmark.ClientConfig(
+            'nas_app', '', False, Path(self.root_path) / 'nas_app.log',
+            Path(self.root_path) / 'server' / 'nas_srv.log',
+            Path(self.root_path) / 'client', 'http://localhost:9443',
+            'localhost', 9443, 1, 10.0, 1, 100.0, 1, 1000,
+            'http-latency', ['10M'], ['10K'], 60.0, 0.0, 300.0)
+
+        mp_benchmark.ClientRunner(config)._http_latency()
+
+        self.assertEqual(write_latency_svg.call_args.args[1],
+                         'HTTP request latency 10KB')
 
     @patch('testsuites.test_quic_perf.time.sleep', return_value=None)
     def test_quic_perf_multipath_flag_is_forwarded(self, _sleep):
