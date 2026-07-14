@@ -49,6 +49,26 @@ class TestTopologyAsciiArt(unittest.TestCase):
             "h0 <----(1000,10ms,1%)-----> h1 <----(1000,10ms,1%)-----> h2"
         )
 
+    def test_linear_link_latency_is_symmetric(self):
+        topology = LinearTopology(
+            '',
+            TopologyConfig(
+                name='long-fat',
+                nodes=2,
+                topology_type=TopologyType.linear,
+                array_description=[
+                    {'link_loss': None, 'init_value': [0]},
+                    {'link_latency': None, 'init_value': [100]},
+                    {'link_jitter': None, 'init_value': [0]},
+                    {'link_bandwidth_forward': None, 'init_value': [1000]},
+                    {'link_bandwidth_backward': None, 'init_value': [1000]},
+                ]
+            )
+        )
+
+        latency = next(iter(topology)).get_matrix(MatrixType.LATENCY_MATRIX)
+        self.assertEqual(latency, [[0, 100], [100, 0]])
+
     def test_mesh_topology_ascii_art_renders_diamond_layout(self):
         topology = self.make_mesh_topology(
             adjacency=[

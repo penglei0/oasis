@@ -130,6 +130,16 @@ class LinearTopology(ITopology):
                             value_mat[i+1][i] = reverse_value[i] if i < len(
                                 reverse_value) else reverse_value[0]
                     if attr_name == 'link_latency':
+                        # link_latency describes the physical link, so the
+                        # configured one-way delay applies in both directions.
+                        # Bandwidth remains directional because the linear
+                        # topology exposes separate forward/backward values.
+                        for i in range(len(value_mat)):
+                            for j in range(i + 1, len(value_mat)):
+                                if adj_matrix[i][j] or adj_matrix[j][i]:
+                                    value = value_mat[i][j] or value_mat[j][i]
+                                    value_mat[i][j] = value
+                                    value_mat[j][i] = value
                         self.limit_max_value(
                             value_mat, attr_name, max_link_latency)
                     if 'link_bandwidth' in attr_name:

@@ -8,6 +8,11 @@ from .topology import ITopology, MatrixType
 class MultiHomingTopology(ITopology):
     """Two-node multi-homing topology expanded from path vectors."""
 
+    # The matrices retain their historical representation for routing and
+    # compatibility.  Physical-link attributes are stored separately because
+    # the two matrix cells represent parallel links, not opposite directions.
+    is_multihoming = True
+
     PATH_INDEX_TO_CELL = {
         0: (0, 1),
         1: (1, 0),
@@ -23,23 +28,22 @@ class MultiHomingTopology(ITopology):
             return "Multi-homing topology"
         path_descriptions = []
         for path in self._path_descriptions():
-            row, col = self.PATH_INDEX_TO_CELL[path["index"]]
+            attributes = self.multihoming_link_attributes.get(path["index"])
             path_descriptions.append(
                 f"{path['name']}: "
-                f"bandwidth {self.all_mats[MatrixType.BW_MATRIX][row][col]}Mbps,"
-                f"latency {self.all_mats[MatrixType.LATENCY_MATRIX][row][col]}ms,"
-                f"loss {self.all_mats[MatrixType.LOSS_MATRIX][row][col]}%,"
-                f"jitter {self.all_mats[MatrixType.JITTER_MATRIX][row][col]}ms"
+                f"bandwidth {attributes['bw']}Mbps,"
+                f"latency {attributes['rtt']}ms,"
+                f"loss {attributes['loss']}%,"
+                f"jitter {attributes['jitter']}ms"
             )
         return "Multi-homing h0-h1\n" + "\n".join(path_descriptions)
 
     def ascii_art(self) -> str:
         if not self.all_mats:
             return ""
-        return "\n".join([
-            f"h0 <----{self._link_label(0, 1)}-----> h1",
-            f"h1 <----{self._link_label(1, 0)}-----> h0",
-        ])
+        return "\n".join(
+            f"h0 <----({link['bw']},{link['rtt']}ms,{link['loss']}%)-----> h1"
+            for link in self.multihoming_link_attributes.values())
 
     def generate_adj_matrix(self, num_of_nodes: int):
         if num_of_nodes != 2:
@@ -69,9 +73,11 @@ class MultiHomingTopology(ITopology):
             topology.all_mats[MatrixType.LOSS_MATRIX] = self._empty_matrix()
             topology.all_mats[MatrixType.LATENCY_MATRIX] = self._empty_matrix()
             topology.all_mats[MatrixType.JITTER_MATRIX] = self._empty_matrix()
+            topology.multihoming_link_attributes = {}
 
             for option in selected_options:
                 row, col = self.PATH_INDEX_TO_CELL[option["index"]]
+                topology.multihoming_link_attributes[option["index"]] = copy.deepcopy(option)
                 topology.all_mats[MatrixType.BW_MATRIX][row][col] = option["bw"]
                 topology.all_mats[MatrixType.LOSS_MATRIX][row][col] = option["loss"]
                 topology.all_mats[MatrixType.LATENCY_MATRIX][row][col] = option["rtt"]

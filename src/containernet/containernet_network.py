@@ -58,6 +58,8 @@ class ContainerizedNetwork (INetwork):
         # Topology related
         self.net_topology = net_topology
         self.net_top_description = net_topology.description()
+        self.multihoming_link_attributes = getattr(
+            net_topology, 'multihoming_link_attributes', {})
         self._init_matrix(net_topology)
         self._check_node_vols()
         logging.debug('self.node_vols %s', self.node_vols)
@@ -111,6 +113,8 @@ class ContainerizedNetwork (INetwork):
         # check topology change only.
         if self._check_topology_change(top):
             self.net_topology = top
+            self.multihoming_link_attributes = getattr(
+                top, 'multihoming_link_attributes', {})
             self._init_matrix(top)
             if self.net_mat is not None:
                 diff = self.num_of_hosts - len(self.net_mat)
@@ -164,18 +168,11 @@ class ContainerizedNetwork (INetwork):
         logging.debug('self.net_latency_mat %s', self.net_latency_mat)
         logging.debug('self.net_jitter_mat %s', self.net_jitter_mat)
 
-        # if net_mat is symmetric, then it is multihoming.
-        if self.net_mat is not None:
-            for i in range(len(self.net_mat)):
-                for j in range(i, len(self.net_mat)):
-                    if self.net_mat[i][j] == 1 and self.net_mat[i][j] == self.net_mat[j][i]:
-                        self.is_multihoming = True
-                        logging.info("==========================================")
-                        logging.info("Oasis detected the multihoming topology.")
-                        logging.info("==========================================")
-                        break
-                if self.is_multihoming:
-                    break
+        self.is_multihoming = bool(self.multihoming_link_attributes)
+        if self.is_multihoming:
+            logging.info("==========================================")
+            logging.info("Oasis detected the multihoming topology.")
+            logging.info("==========================================")
 
     def _init_containernet(self):
         self._setup_docker_nodes(0, self.num_of_hosts - 1)
@@ -306,6 +303,7 @@ class ContainerizedNetwork (INetwork):
                         right_ip
                     )
                     self._addLink(i, j,
+                                  link_index=0,
                                   params1={'ip': left_ip},
                                   params2={'ip': right_ip}
                                   )
@@ -315,30 +313,33 @@ class ContainerizedNetwork (INetwork):
                     self.pair_to_link_ip[(
                         self.hosts[j],
                         self.hosts[i])] = ipStr(link_ip + 1)
-        # lower triangular matrix for multihoming
-        for i in range(self.num_of_hosts):
-            for j in range(i, self.num_of_hosts):
-                if self.net_mat[j][i] == 1:
-                    link_ip = next(link_subnets)
-                    left_ip = ipStr(link_ip + 1) + f'/{link_prefix}'
-                    right_ip = ipStr(link_ip + 2) + f'/{link_prefix}'
-                    logging.info(
-                        "addLink: %s(%s) <--> %s(%s)",
-                        self.hosts[j].name(),
-                        left_ip,
-                        self.hosts[i].name(),
-                        right_ip
-                    )
-                    self._addLink(j, i,
-                                  params1={'ip': left_ip},
-                                  params2={'ip': right_ip}
-                                  )
-                    self.pair_to_link_ip[(
-                        self.hosts[j],
-                        self.hosts[i])] = ipStr(link_ip + 2)
-                    self.pair_to_link_ip[(
-                        self.hosts[i],
-                        self.hosts[j])] = ipStr(link_ip + 1)
+        # A second physical link is represented by the lower triangle only
+        # for an explicitly declared multi-homing topology.
+        if self.is_multihoming:
+            for i in range(self.num_of_hosts):
+                for j in range(i, self.num_of_hosts):
+                    if self.net_mat[j][i] == 1:
+                        link_ip = next(link_subnets)
+                        left_ip = ipStr(link_ip + 1) + f'/{link_prefix}'
+                        right_ip = ipStr(link_ip + 2) + f'/{link_prefix}'
+                        logging.info(
+                            "addLink: %s(%s) <--> %s(%s)",
+                            self.hosts[j].name(),
+                            left_ip,
+                            self.hosts[i].name(),
+                            right_ip
+                        )
+                        self._addLink(j, i,
+                                      link_index=1,
+                                      params1={'ip': left_ip},
+                                      params2={'ip': right_ip}
+                                      )
+                        self.pair_to_link_ip[(
+                            self.hosts[j],
+                            self.hosts[i])] = ipStr(link_ip + 2)
+                        self.pair_to_link_ip[(
+                            self.hosts[i],
+                            self.hosts[j])] = ipStr(link_ip + 1)
 
         for i in range(self.num_of_hosts):
             logging.debug("Oasis config ip routing for host %s",
@@ -351,16 +352,21 @@ class ContainerizedNetwork (INetwork):
             self,
             id1,
             id2,
+            link_index=None,
             **params):
         link = self.containernet.addLink(
             self.hosts[id1].get_host(),
             self.hosts[id2].get_host(), cls=None, **params)
         self.pair_to_link[(self.hosts[id1], self.hosts[id2])] = link
         # apply the traffic shaping on the ingress interface.
-        if self.is_multihoming:
-            self._bandwidth_limit_on_egress_for_multihoming(link, id1, id2)
-            self._traffic_shaping_on_ingress(id1, id2, id2, link.intf2.name)
-            self._traffic_shaping_on_ingress(id1, id2, id1, link.intf1.name)
+        if getattr(self, 'is_multihoming', False):
+            attributes = self.multihoming_link_attributes[link_index]
+            self._bandwidth_limit_on_egress_for_multihoming(
+                link, id1, id2, attributes)
+            self._traffic_shaping_on_ingress(
+                id1, id2, id2, link.intf2.name, attributes)
+            self._traffic_shaping_on_ingress(
+                id1, id2, id1, link.intf1.name, attributes)
         else:
             self._bandwidth_limit_on_egress(link, id1, id2)
             # direction from host1 to host2, setup ifb on host2
@@ -369,7 +375,8 @@ class ContainerizedNetwork (INetwork):
             self._traffic_shaping_on_ingress(id2, id1, id1, link.intf1.name)
         return link
 
-    def _bandwidth_limit_on_egress_for_multihoming(self, link, id1, id2):
+    def _bandwidth_limit_on_egress_for_multihoming(
+            self, link, id1, id2, attributes):
         def __set_bw_limit_on(host, attached_inf, bw_limit):
             host.cmd(
                 f"tc qdisc add dev {attached_inf} root handle 1: {bw_limit}")
@@ -379,10 +386,10 @@ class ContainerizedNetwork (INetwork):
         default_queueing_strategy = "pfifo"
         bw_limit1 = default_queueing_strategy
         bw_limit2 = default_queueing_strategy
-        if self.net_bw_mat is not None:
-            # bw from host1 to host2
-            bw_limit1 = f"tbf rate {self.net_bw_mat[id1][id2]}mbit"
-            bw_limit1 += f" burst {self.net_bw_mat[id1][id2]*1.25}kb latency 1ms"
+        if attributes is not None:
+            bw = attributes['bw']
+            bw_limit1 = f"tbf rate {bw}mbit"
+            bw_limit1 += f" burst {bw * 1.25}kb latency 1ms"
         __set_bw_limit_on(self.hosts[id1], link.intf1.name, bw_limit1)
         __set_bw_limit_on(self.hosts[id2], link.intf2.name, bw_limit1)
 
@@ -411,7 +418,8 @@ class ContainerizedNetwork (INetwork):
         __set_bw_limit_on(self.hosts[id1], link.intf1.name, bw_limit1)
         __set_bw_limit_on(self.hosts[id2], link.intf2.name, bw_limit2)
 
-    def _traffic_shaping_on_ingress(self, id1, id2, target_host, attached_inf):
+    def _traffic_shaping_on_ingress(
+            self, id1, id2, target_host, attached_inf, link_attributes=None):
         """
         Apply the traffic shaping(latency,jitter,loss) on the ingress interface.
         id1: the source host id.
@@ -422,26 +430,26 @@ class ContainerizedNetwork (INetwork):
         Details of traffic shaping in Oasis, please refer to <docs/tc-strategy.md>
         """
         shaping_parameters = ""
-        if self.net_loss_mat is not None:
-            shaping_parameters += f" loss {self.net_loss_mat[id1][id2]}%"
+        if link_attributes is not None:
+            loss = link_attributes['loss']
+            delay = link_attributes['rtt']
+            jitter = link_attributes['jitter']
+        else:
+            loss = self.net_loss_mat[id1][id2] if self.net_loss_mat is not None else 0
+            delay = self.net_latency_mat[id1][id2] if self.net_latency_mat is not None else 0
+            jitter = self.net_jitter_mat[id1][id2] if self.net_jitter_mat is not None else 0
+        shaping_parameters += f" loss {loss}%"
         current_bdp = 250000  # default BDP,  delay 10, bw 200
         scaling_factor = 1.25
-        if self.net_latency_mat is not None:
-            delay = self.net_latency_mat[id1][id2]
-            if delay > 0:
-                shaping_parameters += f" delay {delay}ms"
-                if self.net_bw_mat is not None:
-                    current_bdp = int(
-                        scaling_factor * delay * self.net_bw_mat[id1][id2] * 1000 / 8)
-                    logging.debug("delay %d, bw %d, limits %d", delay,
-                                 self.net_bw_mat[id1][id2], current_bdp)
-                else:
-                    logging.warning(
-                        "self.net_bw_mat is None, using default BDP value.")
-                if self.net_jitter_mat is not None:
-                    jitter = self.net_jitter_mat[id1][id2]
-                    if jitter > 0:
-                        shaping_parameters += f" {self.net_jitter_mat[id1][id2]}ms distribution normal"
+        if delay > 0:
+            shaping_parameters += f" delay {delay}ms"
+            bw = link_attributes['bw'] if link_attributes is not None else (
+                self.net_bw_mat[id1][id2] if self.net_bw_mat is not None else None)
+            if bw is not None:
+                current_bdp = int(scaling_factor * delay * bw * 1000 / 8)
+                logging.debug("delay %d, bw %d, limits %d", delay, bw, current_bdp)
+            if jitter > 0:
+                shaping_parameters += f" {jitter}ms distribution normal"
         logging.info("Host %s shaping_parameters\"%s\"", self.hosts[target_host].name(), shaping_parameters)
         port = attached_inf[-1]
         ifb_interface = f"ifb{port}"

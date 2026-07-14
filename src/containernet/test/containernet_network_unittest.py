@@ -1,6 +1,6 @@
 import sys
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # containernet_network imports mininet which is not available in the
 # unit-test environment.  Stub the modules out before importing.
@@ -123,6 +123,86 @@ class TestResetNetwork(unittest.TestCase):
         self.assertNotIn(
             unittest.mock.call(node1='h1', node2='h2'),
             net.containernet.removeLink.call_args_list)
+
+
+class TestMultiHomingShaping(unittest.TestCase):
+    """Multi-homing applies one physical link profile at both ends."""
+
+    def test_link_profile_is_shared_by_both_endpoints(self):
+        net = object.__new__(ContainerizedNetwork)
+        net.hosts = [MagicMock(), MagicMock()]
+        net.hosts[0].get_host.return_value = MagicMock()
+        net.hosts[1].get_host.return_value = MagicMock()
+        net.pair_to_link = {}
+        net.is_multihoming = True
+        profile = {'bw': 8, 'rtt': 10, 'loss': 2, 'jitter': 1}
+        net.multihoming_link_attributes = {1: profile}
+        net._bandwidth_limit_on_egress_for_multihoming = MagicMock()
+        net._traffic_shaping_on_ingress = MagicMock()
+        link = MagicMock()
+        link.intf1.name = 'h0-eth1'
+        link.intf2.name = 'h1-eth1'
+        net.containernet = MagicMock()
+        net.containernet.addLink.return_value = link
+
+        net._addLink(1, 0, link_index=1)
+
+        net._bandwidth_limit_on_egress_for_multihoming.assert_called_once_with(
+            link, 1, 0, profile)
+        self.assertEqual(net._traffic_shaping_on_ingress.call_count, 2)
+        for call in net._traffic_shaping_on_ingress.call_args_list:
+            self.assertIs(call.args[-1], profile)
+
+
+class TestTopologyLinkExpansion(unittest.TestCase):
+    """Verify adjacency triangles expand to the intended physical links."""
+
+    def _make_network(self, adjacency, multihoming=False):
+        net = object.__new__(ContainerizedNetwork)
+        net.num_of_hosts = 2
+        net.net_mat = adjacency
+        net.node_ip_start = '10.0.0.0/24'
+        net.node_ip_range = '10.0.0.0/16'
+        net.hosts = [MagicMock(), MagicMock()]
+        net.hosts[0].name.return_value = 'h0'
+        net.hosts[1].name.return_value = 'h1'
+        net.pair_to_link_ip = {}
+        net.is_multihoming = multihoming
+        net.net_topology = MagicMock()
+        net.net_topology.ascii_art.return_value = ''
+        net._addLink = MagicMock()
+        return net
+
+    @staticmethod
+    def _parse_network(value):
+        return (0, 24) if value.endswith('/24') else (0, 8)
+
+    def test_non_multihoming_uses_only_upper_triangle_for_one_link(self):
+        net = self._make_network([[0, 1], [1, 0]])
+
+        with patch('src.containernet.containernet_network.netParse',
+                   side_effect=self._parse_network):
+            self.assertTrue(net._setup_topology())
+
+        net._addLink.assert_called_once()
+        self.assertEqual(net._addLink.call_args.args[:2], (0, 1))
+
+    def test_multihoming_uses_lower_triangle_for_second_link(self):
+        net = self._make_network([[0, 1], [1, 0]], multihoming=True)
+        net.multihoming_link_attributes = {
+            0: {'bw': 8, 'rtt': 10, 'loss': 0, 'jitter': 0},
+            1: {'bw': 24, 'rtt': 25, 'loss': 0, 'jitter': 0},
+        }
+
+        with patch('src.containernet.containernet_network.netParse',
+                   side_effect=self._parse_network):
+            self.assertTrue(net._setup_topology())
+
+        self.assertEqual(net._addLink.call_count, 2)
+        self.assertEqual(net._addLink.call_args_list[0].args[:2], (0, 1))
+        self.assertEqual(net._addLink.call_args_list[1].args[:2], (1, 0))
+        self.assertEqual(net._addLink.call_args_list[0].kwargs['link_index'], 0)
+        self.assertEqual(net._addLink.call_args_list[1].kwargs['link_index'], 1)
 
 
 if __name__ == '__main__':
