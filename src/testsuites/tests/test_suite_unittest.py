@@ -2,8 +2,12 @@
 
 import os
 import shutil
+import sys
 import tempfile
+import threading
 import unittest
+import importlib.util
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -23,6 +27,13 @@ from testsuites.test_scp import ScpTest
 from testsuites.test_sshping import SSHPingTest
 from testsuites.test_quic_perf import QuicPerfTest
 from testsuites.test_regular import RegularTest
+from testsuites.test_regular_benchmark import RegularBenchmarkTest
+
+_MP_BENCHMARK_PATH = Path(__file__).resolve().parents[4] / 'src' / 'tools' / 'mp_benchmark.py'
+_MP_BENCHMARK_SPEC = importlib.util.spec_from_file_location('mp_benchmark_under_test', _MP_BENCHMARK_PATH)
+mp_benchmark = importlib.util.module_from_spec(_MP_BENCHMARK_SPEC)
+sys.modules[_MP_BENCHMARK_SPEC.name] = mp_benchmark
+_MP_BENCHMARK_SPEC.loader.exec_module(mp_benchmark)
 
 
 # ---------------------------------------------------------------------------
@@ -508,6 +519,178 @@ class TestFromToolDict(unittest.TestCase):
         self.assertEqual(suite.config.args, '')
         self.assertFalse(suite.config.multipath)
 
+    def test_regular_benchmark_from_tool_dict(self):
+        tool = {
+            'name': 'benchmark',
+            'profile': 'http_gooudput',
+            'client_host': 0,
+            'server_host': 1,
+        }
+        suite = RegularBenchmarkTest.from_tool_dict(tool, 'test1', self.root_path)
+        self.assertIsInstance(suite, RegularBenchmarkTest)
+        self.assertEqual(suite.profile, 'http_gooudput')
+        self.assertEqual(suite.config.test_type, TestType.regular_benchmark)
+
+    def test_regular_benchmark_rejects_unknown_profile(self):
+        with self.assertRaises(ValueError):
+            RegularBenchmarkTest.from_tool_dict(
+                {'name': 'benchmark', 'profile': 'unknown'},
+                'test1', self.root_path)
+
+    @patch('testsuites.test_regular_benchmark.time.sleep', return_value=None)
+    def test_regular_benchmark_passes_result_directory_to_roles(self, _sleep):
+        tool = {
+            'name': 'benchmark',
+            'profile': 'http_latency',
+            'client_host': 0,
+            'server_host': 1,
+        }
+        suite = RegularBenchmarkTest.from_tool_dict(tool, 'test1', self.root_path)
+        suite.result.record = os.path.join(self.root_path, 'regular_benchmark.log')
+        client = MagicMock()
+        client.name.return_value = 'h0'
+        server = MagicMock()
+        server.name.return_value = 'h1'
+
+        self.assertTrue(suite._run_test(_StubNetwork([client, server]), None))
+
+        result_base_path = os.path.dirname(os.path.splitext(suite.result.record)[0])
+        self.assertIn(f'/usr/bin/regular_test.sh server {result_base_path}',
+                      server.cmd.call_args_list[1].args[0])
+        self.assertIn('setsid', server.cmd.call_args_list[1].args[0])
+        self.assertIn('server_wrapper.pid', server.cmd.call_args_list[1].args[0])
+        self.assertIn('kill -TERM', server.cmd.call_args_list[2].args[0])
+        self.assertIn('kill -KILL --', server.cmd.call_args_list[2].args[0])
+        self.assertIn(f'/usr/bin/regular_test.sh client {result_base_path}',
+                      client.cmd.call_args.args[0])
+
+    def test_regular_benchmark_streams_client_wrapper_log(self):
+        tool = {
+            'name': 'benchmark',
+            'profile': 'http_latency',
+            'client_host': 0,
+            'server_host': 1,
+        }
+        suite = RegularBenchmarkTest.from_tool_dict(tool, 'test1', self.root_path)
+        suite.result.record = os.path.join(self.root_path, 'regular_benchmark.log')
+        client = MagicMock()
+        client.name.return_value = 'h0'
+        server = MagicMock()
+        server.name.return_value = 'h1'
+
+        with patch('testsuites.test_regular_benchmark.time.sleep'), \
+                patch('testsuites.test_regular_benchmark.threading.Thread') as thread:
+            self.assertTrue(suite._run_test(_StubNetwork([client, server]), None))
+
+        stream_args = thread.call_args.kwargs['args']
+        self.assertIs(stream_args[0], client)
+        self.assertTrue(stream_args[1].endswith('/client_wrapper.log'))
+
+    def test_regular_benchmark_stream_log_reads_shared_file_without_host_shell(self):
+        log_path = os.path.join(self.root_path, 'client_wrapper.log')
+        with open(log_path, 'w', encoding='utf-8') as log_file:
+            log_file.write('line one\nline two\n')
+        host = MagicMock()
+        host.name.return_value = 'h0'
+        stop_event = threading.Event()
+        stop_event.set()
+
+        with self.assertLogs(level='INFO') as logs:
+            RegularBenchmarkTest._stream_log_to_console(host, log_path, stop_event)
+
+        host.cmd.assert_not_called()
+        self.assertIn('[benchmark log] line one', '\n'.join(logs.output))
+        self.assertIn('[benchmark log] line two', '\n'.join(logs.output))
+
+    @patch.object(mp_benchmark.time, 'sleep', return_value=None)
+    @patch.object(mp_benchmark, 'require_executable', return_value='/usr/bin/nas_app')
+    @patch.object(mp_benchmark, 'ManagedProcess')
+    def test_mp_benchmark_redirects_nas_app_console_to_result_dir(
+            self, managed_process, _require_executable, _sleep):
+        config = mp_benchmark.ClientConfig(
+            nas_app_bin='nas_app',
+            nas_app_args='',
+            launch_nas_app=True,
+            nas_app_log=Path(self.root_path) / 'root_log',
+            nas_srv_log=Path(self.root_path) / 'server' / 'nas_srv.log',
+            result_dir=Path(self.root_path) / 'client',
+            http_base_url='http://localhost:9443',
+            tcp_proxy_host='localhost',
+            tcp_proxy_port=9443,
+            transfer_iterations=20,
+            http_request_rate=10.0,
+            http_request_count=100,
+            tcp_request_rate=100.0,
+            tcp_request_count=100,
+            tcp_ping_payload_size=1000,
+            test_category='http-latency',
+            large_files=['10M'],
+            small_files=['10K'],
+            startup_timeout=60.0,
+            path_setup_delay=2.0,
+            command_timeout=300.0,
+        )
+        managed_process.return_value.running.return_value = True
+
+        runner = mp_benchmark.ClientRunner(config)
+        runner._start_nas()
+
+        self.assertEqual(
+            managed_process.call_args.args[2],
+            Path(self.root_path) / 'client' / 'nas_app.log')
+        self.assertEqual(
+            runner.nas_srv_log_cursor.root,
+            Path(self.root_path) / 'server' / 'nas_srv.log')
+
+    def test_mp_benchmark_download_uses_sender_nas_srv_path_pct(self):
+        server_log = Path(self.root_path) / 'server' / 'nas_srv.log'
+        receiver_log = Path(self.root_path) / 'client' / 'nas_app.log'
+        server_log.parent.mkdir(parents=True)
+        receiver_log.parent.mkdir(parents=True)
+        server_log.write_text('', encoding='utf-8')
+        receiver_log.write_text(
+            '[D][receiver]Path ID: 1,CID: a, PCT(s): 99.00%\n',
+            encoding='utf-8')
+        config = mp_benchmark.ClientConfig(
+            'nas_app', '', False, receiver_log, server_log,
+            Path(self.root_path) / 'client', 'http://localhost:9443',
+            'localhost', 9443, 1, 10.0, 1, 100.0, 1, 1000,
+            'goodput', ['10M'], ['10K'], 60.0, 2.0, 300.0)
+
+        def download(_argv, _timeout):
+            with server_log.open('a', encoding='utf-8') as log_file:
+                log_file.write('[D][sender]Path ID: 1,CID: a, PCT(s): 75.00%\n')
+            return SimpleNamespace(returncode=0, stdout='1048576 1.0 200', stderr='')
+
+        with patch.object(mp_benchmark, 'run_command', side_effect=download), \
+                patch.object(mp_benchmark, 'write_goodput_summary_svg'):
+            result = mp_benchmark.ClientRunner(config)._downloads()
+
+        self.assertEqual(
+            result['testfile_10M']['path_distribution']['latest_share_by_type'],
+            {'D': 75.0})
+
+    def test_mp_benchmark_sigterm_uses_graceful_shutdown_path(self):
+        with self.assertRaises(KeyboardInterrupt):
+            mp_benchmark._handle_shutdown_signal(15, None)
+
+    @patch.object(mp_benchmark, 'wait_for_http')
+    def test_mp_benchmark_http_proxy_ready_timeout_is_fixed(self, wait_for_http):
+        result_dir = Path(self.root_path) / 'client'
+        config = mp_benchmark.ClientConfig(
+            'nas_app', '', False, Path(self.root_path) / 'nas_app.log',
+            Path(self.root_path) / 'server' / 'nas_srv.log',
+            result_dir, 'http://localhost:9443', 'localhost', 9443,
+            1, 10.0, 1, 100.0, 1, 1000, 'readiness-only',
+            ['10M'], ['10K'], 60.0, 0.0, 300.0)
+
+        mp_benchmark.ClientRunner(config).run()
+
+        wait_for_http.assert_called_once_with(
+            'http://localhost:9443/testfile_10K',
+            mp_benchmark.DEFAULT_PROXY_READY_TIMEOUT)
+        self.assertEqual(mp_benchmark.DEFAULT_PROXY_READY_TIMEOUT, 5.0)
+
     @patch('testsuites.test_quic_perf.time.sleep', return_value=None)
     def test_quic_perf_multipath_flag_is_forwarded(self, _sleep):
         tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1,
@@ -579,6 +762,12 @@ class TestLoadTestToolIntegration(unittest.TestCase):
         tool = {'name': 'quic_perf', 'client_host': 0, 'server_host': 1}
         suite = load_test_tool(tool, 'test1', self.root_path)
         self.assertIsInstance(suite, QuicPerfTest)
+
+    def test_load_regular_benchmark(self):
+        tool = {'name': 'benchmark', 'profile': 'http_latency',
+                'client_host': 0, 'server_host': 1}
+        suite = load_test_tool(tool, 'test1', self.root_path)
+        self.assertIsInstance(suite, RegularBenchmarkTest)
 
     def test_load_unknown_falls_back_to_regular(self):
         tool = {'name': 'unknown_tool_xyz', 'client_host': 0, 'server_host': 1}

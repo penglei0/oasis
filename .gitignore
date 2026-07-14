@@ -97,3 +97,4 @@ test_results
 config/
 !test//
 !src/test/
+user/**

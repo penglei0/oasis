@@ -18,6 +18,8 @@ def is_no_op_protocol(proto_name: str) -> bool:
         return True
     if 'quic' in proto_name or 'QUIC' in proto_name:
         return True
+    if 'http' in proto_name or 'HTTP' in proto_name:
+        return True
     return is_next_protocol(proto_name)
 
 

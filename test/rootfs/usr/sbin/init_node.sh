@@ -1,4 +1,22 @@
 #!/bin/sh
+
+install_benchmark_profile() {
+    profile="$1"
+    template="/usr/bin/regular_benchmark_${profile}.sh"
+    if [ ! -f "$template" ]; then
+        echo "Unknown benchmark profile: $profile" >&2
+        exit 2
+    fi
+    cp "$template" /usr/bin/regular_test.sh
+    chmod 755 /usr/bin/regular_test.sh
+}
+
+if [ "${1:-}" = "--benchmark-profile" ]; then
+    [ -n "${2:-}" ] || { echo "--benchmark-profile requires a profile" >&2; exit 2; }
+    install_benchmark_profile "$2"
+    exit 0
+fi
+
 # This script is executed by the init process of each node in the network.
 init_ssh() {
     echo "Initializing SSH for the node..."

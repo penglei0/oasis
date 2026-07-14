@@ -1,4 +1,6 @@
 protocols:
+  - name: http
+    type: distributed
   - name: tcp-cubic
     version: cubic
     type: distributed

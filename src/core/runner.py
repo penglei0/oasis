@@ -60,10 +60,14 @@ def _ensure_testsuites_discovered() -> None:
 
 
 supported_execution_mode = ["serial", "parallel"]
+supported_network_build_mode = ["reset", "rebuild"]
 
 
 def is_parallel_execution(execution_mode: str):
     return execution_mode == "parallel"
+
+def is_rebuild_network_mode(build_mode: str):
+    return build_mode == "rebuild"
 
 
 def add_all_competition_flow_logs(test_results, log_path):
@@ -83,6 +87,10 @@ def diagnostic_test_results(test_results, top_des):
         logging.error("Error: no test results. %s", top_des)
         return False
     for test_type, test_result in test_results.items():
+        if test_type == TestType.regular_benchmark:
+            logging.info(
+                "Regular benchmark artifacts are self-generated; skipping generic analyzer.")
+            continue
         logging.debug(
             "########################## Oasis Analyzing Test Results %s %s"
             "##########################", test_type, test_result)
@@ -356,7 +364,11 @@ class TestRunner:
         self.net_num = 0
         self.top_description = ''
         self.is_ready_flag = False
-        self.root_path = root_path
+        self.root_path = root_path        
+        self.net_build_mode = self.test_yml_config.get('build_mode', 'reset')
+        if self.net_build_mode not in supported_network_build_mode:
+            logging.warning("Error: unsupported network build mode.")
+            return
         self._load_protocols()
 
     def init(self, node_config, topology: ITopology):
@@ -452,10 +464,16 @@ class TestRunner:
 
         # 4.1 Wait for all processes to complete
         for i, p in enumerate(processes):
-            max_wait_time = self.__get_test_time()
-            logging.info(
-                "Oasis waits for process %s for test %s to complete in %s seconds", i, test_name, max_wait_time)
-            p.join(timeout=max_wait_time)
+            if "benchmark" in self.test_yml_config["test_tools"]:
+                logging.info(
+                    "Oasis waits for regular benchmark process %s for test %s to exit.",
+                    i, test_name)
+                p.join()
+            else:
+                max_wait_time = self.__get_test_time()
+                logging.info(
+                    "Oasis waits for process %s for test %s to complete in %s seconds", i, test_name, max_wait_time)
+                p.join(timeout=max_wait_time)
             if p.is_alive():
                 logging.error(f"Process %s for test %s is stuck.",
                               i, test_name)
@@ -479,7 +497,10 @@ class TestRunner:
             process_manager = None
             process_shared_dict = None
             processes = []
-        self.network_mgr.reset_networks()
+        if not is_rebuild_network_mode(self.net_build_mode):
+            self.network_mgr.reset_networks()
+        else:
+            self.network_mgr.stop_networks()
         return True
 
     def handle_test_results(self, top_index):

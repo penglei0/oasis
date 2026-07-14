@@ -16,6 +16,7 @@ class TestType(IntEnum):
     rtt = 3
     sshping = 4
     scp = 5
+    regular_benchmark = 6
 
 
 # add mapping for the test type
@@ -25,7 +26,8 @@ test_type_str_mapping = {
     TestType.jitter: "jitter",
     TestType.rtt: "rtt",
     TestType.sshping: "sshping",
-    TestType.scp: "scp"
+    TestType.scp: "scp",
+    TestType.regular_benchmark: "regular_benchmark",
 }
 
 # ---------------------------------------------------------------------------
