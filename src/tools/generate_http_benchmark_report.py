@@ -15,6 +15,10 @@ from urllib.parse import quote
 
 PATH_LINE = re.compile(r"^(rpath|dpath):\s*(.+?)\s*$", re.IGNORECASE)
 TOPOLOGY_NUMBER = re.compile(r"topology-(\d+)$")
+PATH_PCT = re.compile(
+    r"\[(?P<kind>[A-Z][A-Z0-9_-]*)\]\[[^\]]+\]Path ID:\s*\d+,"
+    r"CID:\s*[0-9a-fA-F]+,.*PCT\(s\):\s*(?P<pct>[0-9.]+)%"
+)
 
 
 @dataclass(frozen=True)
@@ -161,6 +165,59 @@ def watermarked_svg(report_dir: Path, result: ResultRef, svg: Path) -> Path:
         closing_tag = re.search(r"</svg\s*>\s*$", content, re.IGNORECASE)
         if closing_tag:
             content = content[:closing_tag.start()] + watermark + content[closing_tag.start():]
+    target.write_text(content, encoding="utf-8")
+    return target
+
+
+def final_path_pct(result: ResultRef) -> dict[str, float]:
+    """Read the latest D/R path shares from the multipath server log."""
+    candidates = sorted(
+        path for path in result.topology_dir.rglob("*.log")
+        if path.parent.name == "server"
+        and path.name in {"nas_srv.log", "server_app.log"}
+    )
+    latest: dict[str, float] = {}
+    coherent: dict[str, float] = {}
+    for log_file in candidates:
+        for line in log_file.read_text(encoding="utf-8", errors="replace").splitlines():
+            match = PATH_PCT.search(line)
+            if not match:
+                continue
+            kind = match.group("kind").upper()
+            if kind.startswith(("D", "R")):
+                latest[kind[0]] = float(match.group("pct"))
+                if ("D" in latest and "R" in latest
+                        and abs(latest["D"] + latest["R"] - 100.0) <= 1.0):
+                    coherent = dict(latest)
+    return coherent or latest
+
+
+def pct_indicator(report_dir: Path, result: ResultRef) -> Path | None:
+    """Write a compact SVG showing the final direct/relay path shares."""
+    pct = final_path_pct(result)
+    if not pct or not ({"D", "R"} & pct.keys()):
+        return None
+    target = (report_dir / "pct_assets" / result.category /
+              result.topology_dir.name / "final_path_pct.svg")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    width, height = 260, 42
+    bar_x, bar_y, bar_width, bar_height = 34, 11, 210, 20
+    direct = max(0.0, min(100.0, pct.get("D", 0.0)))
+    relay = max(0.0, min(100.0, pct.get("R", 0.0)))
+    direct_width = bar_width * direct / 100.0
+    relay_x = bar_x + direct_width
+    relay_width = bar_width - direct_width
+    direct_label = f"D {direct:.1f}%" if "D" in pct else "D"
+    relay_label = f"R {relay:.1f}%" if "R" in pct else "R"
+    content = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+  <title>Final path PCT: {html.escape(direct_label)} | {html.escape(relay_label)}</title>
+  <rect x="{bar_x}" y="{bar_y}" width="{bar_width}" height="{bar_height}" rx="2" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <rect x="{bar_x}" y="{bar_y}" width="{direct_width:.2f}" height="{bar_height}" fill="#2f855a"/>
+  <rect x="{relay_x:.2f}" y="{bar_y}" width="{relay_width:.2f}" height="{bar_height}" fill="#c53030"/>
+  <text x="{bar_x + 5}" y="25" font-family="sans-serif" font-size="12" font-weight="600" fill="white">{html.escape(direct_label)}</text>
+  <text x="{bar_x + bar_width - 5}" y="25" text-anchor="end" font-family="sans-serif" font-size="12" font-weight="600" fill="white">{html.escape(relay_label)}</text>
+</svg>
+'''
     target.write_text(content, encoding="utf-8")
     return target
 
@@ -399,7 +456,9 @@ def page_html(
     return "\n".join(parts)
 
 
-def matrix_html(keys: list[tuple[str, str]], pages: dict[tuple[str, str], str]) -> str:
+def matrix_html(keys: list[tuple[str, str]], pages: dict[tuple[str, str], str],
+                pct_images: dict[tuple[str, str], Path | None],
+                report_dir: Path) -> str:
     rpaths = sorted({key[0] for key in keys})
     dpaths = sorted({key[1] for key in keys})
     rows = ["<table class='matrix'><thead><tr><th>直连路径\\中继路径</th>"]
@@ -410,8 +469,14 @@ def matrix_html(keys: list[tuple[str, str]], pages: dict[tuple[str, str], str]) 
         for rpath in rpaths:
             page = pages.get((rpath, dpath))
             if page:
+                pct_image = pct_images.get((rpath, dpath))
+                pct_html = ""
+                if pct_image:
+                    pct_url = html.escape(rel_url(report_dir, pct_image), quote=True)
+                    pct_html = (f"<img class='pct-indicator' src='{pct_url}' "
+                                "alt='Final path PCT'>")
                 rows.append(f"<td><a href='{html.escape(page, quote=True)}'>"
-                            "View results</a></td>")
+                            f"View results</a>{pct_html}</td>")
             else:
                 rows.append("<td class='empty'>-</td>")
         rows.append("</tr>")
@@ -426,7 +491,7 @@ a{color:#075da8}.muted{color:#68737d}.topology{font-size:.8em;color:#68737d}
 pre{background:#f4f6f8;border:1px solid #d9e0e6;padding:.8rem;white-space:pre-wrap}
 .report-note{margin:1rem 0}.report-note-image{display:block;max-width:100%;height:auto;margin:.75rem auto}
 table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ccd5dd;padding:.55rem;vertical-align:top;text-align:left}
-th{background:#edf2f6}.matrix{font-size:.9rem}.matrix th{min-width:10rem}.matrix td{min-width:7rem;text-align:center}.empty{color:#9aa5ad;text-align:center!important}
+th{background:#edf2f6}.matrix{font-size:.9rem}.matrix th{min-width:10rem}.matrix td{min-width:7rem;text-align:center}.matrix td .pct-indicator{display:inline-block;width:130px;height:21px;margin-left:.35rem;vertical-align:middle}.empty{color:#9aa5ad;text-align:center!important}
 .result{border:1px solid #d5dde5;padding:1rem;margin:1rem 0;background:#fbfcfd}.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
 .gallery.vertical{display:flex;flex-direction:column;align-items:stretch}.gallery.vertical .chart{max-width:100%}
 .chart{margin:0;border:1px solid #d5dde5;background:white;padding:.5rem}.chart img{display:block;max-width:100%;width:auto;height:auto;max-height:420px;margin:0 auto}.chart figcaption{font-size:.85rem;margin-top:.4rem;overflow-wrap:anywhere}
@@ -519,9 +584,16 @@ def generate(results_dir: Path, output_dir: Path) -> Path:
                           index_file, category_pairs=category_pairs), encoding="utf-8")
 
         keys = sorted(multipath_by_key)
+        pct_images = {
+            key: pct_indicator(
+                output_dir,
+                next(iter(multipath_by_key[key].values()), None),
+            )
+            for key in keys
+        }
         index_sections.extend([
             f"<h2>{html.escape(case_title)}</h2>",
-            matrix_html(keys, pages),
+            matrix_html(keys, pages, pct_images, output_dir),
         ])
 
     html_parts = [
