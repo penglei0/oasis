@@ -107,9 +107,68 @@ def short_description(result: ResultRef, include_rpath: bool = True) -> str:
     return "\n".join(lines)
 
 
+def watermark_text(result: ResultRef) -> str:
+    """Return compact path attributes for the SVG watermark."""
+    values = []
+    setup_pattern = re.compile(
+        r"bandwidth\s+([^,]+),\s*latency\s+([^,]+),\s*loss\s+([^,]+)",
+        re.IGNORECASE,
+    )
+    path_names = (("dpath",) if "single_path" in result.category
+                  else ("dpath", "rpath"))
+    for path_name in path_names:
+        setup = result.paths.get(path_name)
+        if not setup:
+            continue
+        match = setup_pattern.search(setup)
+        if match:
+            values.append(" ".join(part.strip() for part in match.groups()))
+    return " | ".join(values)
+
+
+def watermarked_svg(report_dir: Path, result: ResultRef, svg: Path) -> Path:
+    """Copy an SVG into the report and add a subtle topology watermark."""
+    relative = svg.relative_to(result.topology_dir)
+    target = (report_dir / "svg_assets" / result.category /
+              result.topology_dir.name / relative)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    content = svg.read_text(encoding="utf-8", errors="replace")
+    text = html.escape(watermark_text(result), quote=True)
+    if text and "benchmark-watermark" not in content:
+        viewbox = re.search(
+            r"<svg\b[^>]*\bviewBox\s*=\s*['\"]\s*"
+            r"([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)\s+"
+            r"([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)\s*['\"]",
+            content,
+            re.IGNORECASE,
+        )
+        if viewbox:
+            min_x, min_y, width, height = (
+                float(value) for value in viewbox.groups())
+        else:
+            min_x, min_y, width, height = 0.0, 0.0, 100.0, 100.0
+        center_x = min_x + width / 2
+        center_y = min_y + height / 2
+        watermark = (
+            "<g id='benchmark-watermark' pointer-events='none' "
+            f"opacity='0.22' transform='rotate(-24 {center_x:g} {center_y:g})'>"
+            f"<text x='{center_x:g}' y='{center_y:g}' "
+            "text-anchor='middle' dominant-baseline='middle' "
+            "font-family='Arial,sans-serif' font-size='18' "
+            "font-weight='600' fill='#5b6670'>"
+            f"{text}</text></g>"
+        )
+        closing_tag = re.search(r"</svg\s*>\s*$", content, re.IGNORECASE)
+        if closing_tag:
+            content = content[:closing_tag.start()] + watermark + content[closing_tag.start():]
+    target.write_text(content, encoding="utf-8")
+    return target
+
+
 def svg_card(report_dir: Path, result: ResultRef, svg: Path) -> str:
     label = str(svg.relative_to(result.topology_dir))
-    href = html.escape(rel_url(report_dir, svg), quote=True)
+    packaged_svg = watermarked_svg(report_dir, result, svg)
+    href = html.escape(rel_url(report_dir, packaged_svg), quote=True)
     chart_class = "chart"
     if "goodput_summary" in svg.stem:
         chart_class += " goodput-summary"
