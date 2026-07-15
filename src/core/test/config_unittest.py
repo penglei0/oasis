@@ -254,8 +254,8 @@ class TestLoadAllTests(unittest.TestCase):
         self.assertEqual(
             first_topology.get_matrix(MatrixType.LOSS_MATRIX),
             [
-                [0, 1],
                 [0, 0],
+                [1, 0],
             ])
         self.assertEqual(
             first_topology.get_matrix(MatrixType.JITTER_MATRIX),

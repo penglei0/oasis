@@ -48,6 +48,19 @@ class RegularBenchmarkTest(ITestSuite):
         host.cmd(f"/usr/sbin/init_node.sh --benchmark-profile {shlex.quote(self.profile)}")
 
     @staticmethod
+    def _read_exit_status(status_path: str):
+        """Read a role status file; return ``None`` while the role is running."""
+        try:
+            with open(status_path, encoding="utf-8") as status_file:
+                output = status_file.read()
+        except OSError:
+            return None
+        try:
+            return int(output.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return None
+
+    @staticmethod
     def _stream_log_to_console(host, log_path: str, stop_event: threading.Event) -> None:
         offset = 0
         logging.info("Streaming benchmark log from %s:%s", host.name(), log_path)
@@ -88,11 +101,18 @@ class RegularBenchmarkTest(ITestSuite):
         self._install_profile(client)
         server_log_path = f"{result_base_path}/server_wrapper.log"
         server_pid_path = f"{result_base_path}/server_wrapper.pid"
+        server_status_path = f"{result_base_path}/server_wrapper.status"
         client_log_path = f"{result_base_path}/client_wrapper.log"
+        client_status_path = f"{result_base_path}/client_wrapper.status"
+        server_command = (
+            f"/usr/bin/regular_test.sh server {quoted_result_base_path} "
+            f"> {shlex.quote(server_log_path)} 2>&1; "
+            f"status=$?; printf '%s\\n' \"$status\" > "
+            f"{shlex.quote(server_status_path)}")
         server.cmd(
             f"mkdir -p {quoted_result_base_path} && "
-            f"setsid /usr/bin/regular_test.sh server {quoted_result_base_path} "
-            f"> {shlex.quote(server_log_path)} 2>&1 & "
+            f"rm -f {shlex.quote(server_status_path)} {shlex.quote(server_pid_path)} && "
+            f"setsid sh -c {shlex.quote(server_command)} & "
             f"echo $! > {shlex.quote(server_pid_path)}")
         time.sleep(self.server_start_delay)
         stop_log_stream = threading.Event()
@@ -105,11 +125,15 @@ class RegularBenchmarkTest(ITestSuite):
         try:
             client.cmd(
                 f"mkdir -p {quoted_result_base_path} && "
+                f"rm -f {shlex.quote(client_status_path)} && "
                 f"/usr/bin/regular_test.sh client {quoted_result_base_path} "
-                f"> {shlex.quote(client_log_path)} 2>&1")
+                f"> {shlex.quote(client_log_path)} 2>&1; "
+                f"status=$?; printf '%s\\n' \"$status\" > "
+                f"{shlex.quote(client_status_path)}")
         finally:
             stop_log_stream.set()
             log_thread.join(timeout=2.0)
+            server_status = self._read_exit_status(server_status_path)
             server.cmd(
                 f"if [ -s {shlex.quote(server_pid_path)} ]; then "
                 f"pid=$(cat {shlex.quote(server_pid_path)}); "
@@ -120,4 +144,11 @@ class RegularBenchmarkTest(ITestSuite):
                 f"if kill -0 \"$pid\" 2>/dev/null; then "
                 f"kill -KILL -- \"-$pid\" 2>/dev/null || true; fi; "
                 f"fi")
+        client_status = self._read_exit_status(client_status_path)
+        if client_status != 0:
+            logging.error("Regular benchmark client failed with exit status %s", client_status)
+            return False
+        if server_status not in (None, 0):
+            logging.error("Regular benchmark server failed with exit status %s", server_status)
+            return False
         return True

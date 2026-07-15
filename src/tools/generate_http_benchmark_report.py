@@ -1,0 +1,417 @@
+#!/usr/bin/env python3
+"""Generate a static index for the multipath benchmark result sets."""
+
+from __future__ import annotations
+
+import argparse
+import html
+import os
+import re
+import shutil
+from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import quote
+
+
+PATH_LINE = re.compile(r"^(rpath|dpath):\s*(.+?)\s*$", re.IGNORECASE)
+TOPOLOGY_NUMBER = re.compile(r"topology-(\d+)$")
+
+
+@dataclass(frozen=True)
+class ResultRef:
+    category: str
+    root: Path
+    topology_dir: Path
+    topology_id: str
+    description: str
+    paths: dict[str, str]
+
+    @property
+    def key(self) -> tuple[str, str] | None:
+        if "rpath" not in self.paths or "dpath" not in self.paths:
+            return None
+        return self.paths["rpath"], self.paths["dpath"]
+
+
+def canonical_setup(value: str) -> str:
+    """Normalize setup text while preserving its meaningful values."""
+    return re.sub(r"\s+", " ", value.strip())
+
+
+def read_result(root: Path, category: str, topology_dir: Path) -> ResultRef | None:
+    description_file = topology_dir / "topology_description.txt"
+    if not description_file.is_file():
+        return None
+    description = description_file.read_text(encoding="utf-8", errors="replace")
+    paths: dict[str, str] = {}
+    for line in description.splitlines():
+        match = PATH_LINE.match(line.strip())
+        if match:
+            paths[match.group(1).lower()] = canonical_setup(match.group(2))
+    topology_match = TOPOLOGY_NUMBER.match(topology_dir.name)
+    topology_id = topology_match.group(1) if topology_match else topology_dir.name
+    return ResultRef(category, root, topology_dir, topology_id, description, paths)
+
+
+def collect_results(results_dir: Path, category: str) -> list[ResultRef]:
+    category_dir = results_dir / category
+    if not category_dir.is_dir():
+        return []
+    results = []
+    for topology_dir in sorted(
+            (p for p in category_dir.iterdir() if p.is_dir()),
+            key=lambda p: (int(TOPOLOGY_NUMBER.match(p.name).group(1))
+                           if TOPOLOGY_NUMBER.match(p.name) else 10**9, p.name)):
+        result = read_result(results_dir, category, topology_dir)
+        if result and result.key:
+            results.append(result)
+    return results
+
+
+def rel_url(from_dir: Path, target: Path) -> str:
+    return quote(os.path.relpath(target, from_dir), safe="/._-()")
+
+
+def result_link(report_dir: Path, target: Path, label: str) -> str:
+    return (f"<a href='{html.escape(rel_url(report_dir, target), quote=True)}'>"
+            f"{html.escape(label)}</a>")
+
+
+def setup_label(setup: str) -> str:
+    match = re.search(
+        r"bandwidth\s+([^,]+),\s*latency\s+([^,]+),\s*loss\s+([^,]+),",
+        setup,
+        re.IGNORECASE,
+    )
+    if not match:
+        return setup.replace(",", ", ")
+    bandwidth, one_way_delay, loss = (part.strip() for part in match.groups())
+    try:
+        rtt = f"{float(one_way_delay.rstrip('ms')) * 2:g}ms"
+    except ValueError:
+        rtt = one_way_delay
+    return f"BW {bandwidth}, RTT {rtt}, loss {loss}"
+
+
+def short_description(result: ResultRef, include_rpath: bool = True) -> str:
+    lines = []
+    display_names = {
+        "dpath": "直连路径(dpath)",
+        "rpath": "中继路径(rpath)",
+    }
+    for name in ("dpath", "rpath"):
+        if name == "rpath" and not include_rpath:
+            continue
+        if name in result.paths:
+            lines.append(f"{display_names[name]}: {setup_label(result.paths[name])}")
+    return "\n".join(lines)
+
+
+def svg_card(report_dir: Path, result: ResultRef, svg: Path) -> str:
+    label = str(svg.relative_to(result.topology_dir))
+    href = html.escape(rel_url(report_dir, svg), quote=True)
+    chart_class = "chart"
+    if svg.name == "http_20M_goodput_summary.svg":
+        chart_class += " goodput-summary"
+    elif svg.name in {
+            "http_10K_latency_distribution.svg",
+            "http_50K_latency_distribution.svg"}:
+        chart_class += " latency-distribution"
+    return (
+        f"<figure class='{chart_class}'>"
+        f"<a href='{href}'><img src='{href}' alt='{html.escape(label, quote=True)}'></a>"
+        f"<figcaption>{html.escape(label)}</figcaption></figure>")
+
+
+def svg_gallery(report_dir: Path, result: ResultRef) -> str:
+    svg_files = sorted(result.topology_dir.rglob("*.svg"))
+    if not svg_files:
+        return "<p class='muted'>No SVG results found.</p>"
+    return "<div class='gallery'>" + "".join(
+        svg_card(report_dir, result, svg) for svg in svg_files) + "</div>"
+
+
+def comparison_gallery(report_dir: Path, multipath: ResultRef,
+                       single_path: ResultRef) -> str:
+    multi_svgs = {svg.name: svg for svg in multipath.topology_dir.rglob("*.svg")}
+    single_svgs = {svg.name: svg for svg in single_path.topology_dir.rglob("*.svg")}
+    names = sorted(set(multi_svgs) | set(single_svgs))
+    if not names:
+        return "<p class='muted'>No SVG results found.</p>"
+    rows = []
+    for name in names:
+        panes = []
+        if name in multi_svgs:
+            panes.append("<div class='compare-pane'><h4>多路径</h4>" +
+                         svg_card(report_dir, multipath, multi_svgs[name]) + "</div>")
+        if name in single_svgs:
+            panes.append("<div class='compare-pane'><h4>单路径</h4>" +
+                         svg_card(report_dir, single_path, single_svgs[name]) + "</div>")
+        rows.append("<div class='comparison-row'>" + "".join(panes) + "</div>")
+    return "<div class='comparison-gallery'>" + "".join(rows) + "</div>"
+
+
+def log_viewer(report_dir: Path, result: ResultRef, log_file: Path) -> Path:
+    """Write a browser-renderable HTML view for one plain-text log."""
+    relative = log_file.relative_to(result.root)
+    viewer = report_dir / "log_pages" / Path(*relative.parts)
+    viewer = viewer.with_name(viewer.name + ".html")
+    viewer.parent.mkdir(parents=True, exist_ok=True)
+    content = log_file.read_text(encoding="utf-8", errors="replace")
+    viewer.write_text(
+        "<!doctype html><html><head><meta charset='utf-8'>"
+        f"<title>{html.escape(log_file.name)}</title>"
+        "<style>body{margin:1rem;font-family:monospace}"
+        "pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body>"
+        f"<h1>{html.escape(str(relative))}</h1>"
+        f"<pre>{html.escape(content)}</pre></body></html>",
+        encoding="utf-8")
+    return viewer
+
+
+def oasis_log_viewer(report_dir: Path, log_file: Path) -> Path:
+    """Write the top-level Oasis log as a browser-renderable HTML page."""
+    viewer = report_dir / "log_pages" / "oasis.log.html"
+    viewer.parent.mkdir(parents=True, exist_ok=True)
+    content = log_file.read_text(encoding="utf-8", errors="replace")
+    viewer.write_text(
+        "<!doctype html><html><head><meta charset='utf-8'>"
+        "<title>oasis.log</title>"
+        "<style>body{margin:1rem;font-family:monospace}"
+        "pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body>"
+        "<h1>oasis.log</h1>"
+        f"<pre>{html.escape(content)}</pre></body></html>",
+        encoding="utf-8")
+    return viewer
+
+
+def evidence_links(report_dir: Path, result: ResultRef) -> str:
+    files = sorted(
+        p for p in result.topology_dir.rglob("*")
+        if p.is_file() and p.match("*.log"))
+    if not files:
+        return "<p class='muted'>No logs or evidence files found.</p>"
+    links = []
+    for path in files:
+        relative = str(path.relative_to(result.topology_dir))
+        links.append(
+            f"<li>{result_link(report_dir, log_viewer(report_dir, result, path), relative)}</li>")
+    return "<ul class='logs'>" + "".join(links) + "</ul>"
+
+
+def result_block(report_dir: Path, result: ResultRef, title: str,
+                 include_rpath: bool = True) -> str:
+    description = html.escape(short_description(result, include_rpath))
+    return (f"<article class='result'><h3>{html.escape(title)} "
+            f"<span class='topology'>topology-{html.escape(result.topology_id)}</span></h3>"
+            f"<pre>{description}</pre>{svg_gallery(report_dir, result)}"
+            f"<p>{result_link(report_dir, result.topology_dir, 'Logs and Evidences')}</p>"
+            f"{evidence_links(report_dir, result)}</article>")
+
+
+def page_name(case_number: int, index: int) -> str:
+    return f"case{case_number}-{index:03d}.html"
+
+
+def comparison_block(report_dir: Path, multipath: ResultRef | None,
+                     single_path: ResultRef, title: str) -> str:
+    description = html.escape(short_description(multipath, include_rpath=True))
+    if multipath is None:
+        return result_block(report_dir, single_path, title, include_rpath=False)
+    return (f"<article class='result'><h3>{html.escape(title)} "
+            f"<span class='topology'>multi topology-{html.escape(multipath.topology_id)} / "
+            f"single topology-{html.escape(single_path.topology_id)}</span></h3>"
+            f"<pre>{description}</pre>"
+            f"{comparison_gallery(report_dir, multipath, single_path)}"
+            "<h4>多路径 Logs and Evidences</h4>"
+            f"{evidence_links(report_dir, multipath)}"
+            "<h4>单路径 Logs and Evidences</h4>"
+            f"{evidence_links(report_dir, single_path)}</article>")
+
+
+def page_html(
+        report_dir: Path,
+        key: tuple[str, str],
+        multipath: dict[str, ResultRef],
+        single_path: dict[str, ResultRef],
+        index_file: Path,
+        *,
+        category_pairs: tuple[tuple[str, str, str], ...]) -> str:
+    rpath, dpath = key
+    parts = [
+        "<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>",
+        f"<title>MP benchmark: {html.escape(setup_label(rpath))} / "
+        f"{html.escape(setup_label(dpath))}</title>",
+        STYLE,
+        "</head><body>",
+        f"<p>{result_link(report_dir, index_file, 'Back to result matrix')}</p>",
+        "<h1>MP benchmark result</h1>",
+        "<h2>多路径测试结果</h2>",
+    ]
+    for category, _single_category, title in category_pairs:
+        multi_result = multipath.get(category)
+        single_result = single_path.get(_single_category)
+        if multi_result and single_result:
+            parts.append(comparison_block(report_dir, multi_result, single_result, title))
+        elif multi_result:
+            parts.append(result_block(report_dir, multi_result, title))
+        else:
+            parts.append(f"<article class='result'><h3>{title}</h3>"
+                         "<p class='muted'>Result not found.</p></article>")
+
+    parts.append("</body></html>")
+    return "\n".join(parts)
+
+
+def matrix_html(keys: list[tuple[str, str]], pages: dict[tuple[str, str], str]) -> str:
+    rpaths = sorted({key[0] for key in keys})
+    dpaths = sorted({key[1] for key in keys})
+    rows = ["<table class='matrix'><thead><tr><th>直连路径\\中继路径</th>"]
+    rows.extend(f"<th>{html.escape(setup_label(rpath))}</th>" for rpath in rpaths)
+    rows.append("</tr></thead><tbody>")
+    for dpath in dpaths:
+        rows.append(f"<tr><th>{html.escape(setup_label(dpath))}</th>")
+        for rpath in rpaths:
+            page = pages.get((rpath, dpath))
+            if page:
+                rows.append(f"<td><a href='{html.escape(page, quote=True)}'>"
+                            "View results</a></td>")
+            else:
+                rows.append("<td class='empty'>-</td>")
+        rows.append("</tr>")
+    rows.append("</tbody></table>")
+    return "\n".join(rows)
+
+
+STYLE = """<style>
+body{font-family:Arial,'Noto Sans SC',sans-serif;color:#20252b;margin:2rem;line-height:1.45}
+h1,h2{color:#17324d}h2{border-bottom:2px solid #d7e1ea;padding-bottom:.35rem;margin-top:2rem}
+a{color:#075da8}.muted{color:#68737d}.topology{font-size:.8em;color:#68737d}
+pre{background:#f4f6f8;border:1px solid #d9e0e6;padding:.8rem;white-space:pre-wrap}
+table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ccd5dd;padding:.55rem;vertical-align:top;text-align:left}
+th{background:#edf2f6}.matrix{font-size:.9rem}.matrix th{min-width:10rem}.matrix td{min-width:7rem;text-align:center}.empty{color:#9aa5ad;text-align:center!important}
+.result{border:1px solid #d5dde5;padding:1rem;margin:1rem 0;background:#fbfcfd}.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+.gallery.vertical{display:flex;flex-direction:column;align-items:stretch}.gallery.vertical .chart{max-width:100%}
+.chart{margin:0;border:1px solid #d5dde5;background:white;padding:.5rem}.chart img{display:block;max-width:100%;width:auto;height:auto;max-height:420px;margin:0 auto}.chart figcaption{font-size:.85rem;margin-top:.4rem;overflow-wrap:anywhere}
+.chart.goodput-summary img{max-height:647px}.chart.latency-distribution img{max-height:454px}
+.comparison-gallery{display:flex;flex-direction:column;gap:1rem}.comparison-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.compare-pane{min-width:0}.compare-pane h4{margin:.25rem 0;color:#53616d}.compare-pane .chart{height:100%;box-sizing:border-box}
+.logs{display:flex;flex-wrap:nowrap;gap:1.25rem;list-style:none;margin:.5rem 0;padding:0;white-space:nowrap}.logs li{margin:0}
+.page-status{font:600 .9rem monospace;color:#53616d;margin-bottom:.75rem}
+</style>"""
+
+
+PAGE_STATUS = """<div class='page-status' id='page-status'>Visitors: -- | Time on page: 00:00:00</div>
+<script>
+(function () {
+  let visits = '--';
+  const started = Date.now();
+  const status = document.getElementById('page-status');
+  function render() {
+    const seconds = Math.floor((Date.now() - started) / 1000);
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    status.textContent = 'Visitors: ' + visits + ' | Time on page: ' + h + ':' + m + ':' + s;
+  }
+  async function updateVisitors(increment) {
+    const suffix = increment ? '?increment=1' : '';
+    try {
+      const response = await fetch('/visitor-count' + suffix, {cache: 'no-store'});
+      if (response.ok) visits = (await response.json()).count;
+      render();
+    } catch (_) {
+      visits = 'unavailable';
+      render();
+    }
+  }
+  render();
+  updateVisitors(true);
+  setInterval(function () { updateVisitors(false); }, 5000);
+  setInterval(render, 1000);
+}());
+</script>"""
+
+
+def generate(results_dir: Path, output_dir: Path) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    index_file = output_dir / "index.html"
+    oasis_log = results_dir / "oasis.log"
+    if oasis_log.is_file():
+        # Keep the deployment self-contained and refresh the packaged log on
+        # every report generation.
+        shutil.copy2(oasis_log, output_dir / "oasis.log")
+        oasis_log_viewer(output_dir, oasis_log)
+    test_cases = (
+        ("测试用例1", (
+            ("http_goodput", "http_goodput_single_path", "HTTP goodput"),
+            ("http_latency", "http_latency_single_path", "HTTP latency"),
+        )),
+        ("测试用例2(高时延)", (
+            ("http_goodput_high_rtt", "http_goodput_single_path_high_rtt", "HTTP goodput"),
+            ("http_latency_high_rtt", "http_latency_single_path_high_rtt", "HTTP latency"),
+        )),
+    )
+    index_sections = []
+    for case_number, (case_title, category_pairs) in enumerate(test_cases, 1):
+        category_names = {name for pair in category_pairs for name in pair[:2]}
+        categories = {
+            name: collect_results(results_dir, name) for name in category_names
+        }
+        multipath_by_key: dict[tuple[str, str], dict[str, ResultRef]] = {}
+        for category, _single_category, _title in category_pairs:
+            for result in categories[category]:
+                multipath_by_key.setdefault(result.key, {})[category] = result
+
+        single_by_dpath: dict[str, dict[str, ResultRef]] = {}
+        for _category, single_category, _title in category_pairs:
+            for result in categories[single_category]:
+                # A single-path sweep may contain several directories with
+                # the same dpath but different unused rpath settings. Keep
+                # one deterministic result for the dpath comparison.
+                single_by_dpath.setdefault(result.paths["dpath"], {}).setdefault(
+                    single_category, result)
+
+        pages: dict[tuple[str, str], str] = {}
+        for index, key in enumerate(sorted(multipath_by_key), 1):
+            filename = page_name(case_number, index)
+            pages[key] = filename
+            single_matches = single_by_dpath.get(key[1], {})
+            (output_dir / filename).write_text(
+                page_html(output_dir, key, multipath_by_key[key], single_matches,
+                          index_file, category_pairs=category_pairs), encoding="utf-8")
+
+        keys = sorted(multipath_by_key)
+        index_sections.extend([
+            f"<h2>{html.escape(case_title)}</h2>",
+            matrix_html(keys, pages),
+        ])
+
+    html_parts = [
+        "<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>",
+        "<title>MP benchmark result matrix</title>", STYLE,
+        "</head><body>", PAGE_STATUS,
+        "<h1>MP benchmark result matrix</h1>",
+        *index_sections,
+        "<p class='oasis-log'>"
+        "<a href='log_pages/oasis.log.html'>Oasis execution log (oasis.log)</a></p>",
+        "</body></html>",
+    ]
+    index_file.write_text("\n".join(html_parts), encoding="utf-8")
+    return index_file
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--results-dir", type=Path, default=Path("test_results"))
+    parser.add_argument("--output-dir", type=Path,
+                        default=Path("test_results/http_benchmark_report"))
+    args = parser.parse_args()
+    if not args.results_dir.is_dir():
+        parser.error(f"results directory does not exist: {args.results_dir}")
+    output = generate(args.results_dir.resolve(), args.output_dir.resolve())
+    print(f"Wrote {output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -93,6 +93,12 @@ id_rsa*
 
 # results
 test_results
+!test_results/
+test_results/*
+!test_results/Dockerfile.nginx
+!test_results/visitor_counter.py
+!test_results/nginx.conf
+!test_results/docker-entrypoint.sh
 !test/quic-multipath-3paths.json
 config/
 !test//

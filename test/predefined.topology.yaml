@@ -150,13 +150,13 @@ topology:
     nodes: 2
     path_description:
       - name: rpath
-        index: 0
+        index: 1
         bw_vector: [100, 10]
         rtt_vector: [100, 10]
         loss_vector: [1, 2]
         jitter_vector: [0]
       - name: dpath
-        index: 1
+        index: 0
         bw_vector: [100]
         rtt_vector: [100, 1]
         loss_vector: [0]

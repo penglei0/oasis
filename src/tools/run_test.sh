@@ -139,7 +139,19 @@ if [ -n "$other_args_for_oasis" ]; then
 fi
 
 # Step 1: copy files to rootfs when imported as a module
-if [ "$has_skipped_copy" != "True" ] && [ "$is_imported_as_module" = "True" ]; then
+if [ "$has_skipped_copy" != "True" ]; then
+    benchmark_source="$default_oasis_src_path/src/tools/http_benchmark.py"
+    benchmark_target="$default_oasis_src_path/test/rootfs/usr/bin/http_benchmark.py"
+    if [ -f "$benchmark_source" ]; then
+        mkdir -p "$(dirname "$benchmark_target")"
+        cp "$benchmark_source" "$benchmark_target"
+        chmod +x "$benchmark_target"
+        print_message "Synced $benchmark_source to $benchmark_target" pass
+    else
+        print_message "File $benchmark_source not found, skipping HTTP benchmark sync" fail
+        exit 1
+    fi
+
     # TODO(.): define the files to copy
     files_to_copy="./build/bin/bats_iperf"
     for file in $files_to_copy; do

@@ -1,4 +1,4 @@
-# mp_benchmark.py must be present in each node rootfs at /usr/bin/mp_benchmark.py.
+# http_benchmark.py must be present in each node rootfs at /usr/bin/http_benchmark.py.
 host:
   image:
     name: default

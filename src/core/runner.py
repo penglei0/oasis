@@ -364,7 +364,7 @@ class TestRunner:
         self.net_num = 0
         self.top_description = ''
         self.is_ready_flag = False
-        self.root_path = root_path        
+        self.root_path = root_path
         self.net_build_mode = self.test_yml_config.get('build_mode', 'reset')
         if self.net_build_mode not in supported_network_build_mode:
             logging.warning("Error: unsupported network build mode.")
@@ -463,6 +463,7 @@ class TestRunner:
             p.start()
 
         # 4.1 Wait for all processes to complete
+        process_failed = False
         for i, p in enumerate(processes):
             if "benchmark" in self.test_yml_config["test_tools"]:
                 logging.info(
@@ -486,6 +487,7 @@ class TestRunner:
                         and process_shared_dict[i].get("error"):
                     logging.error(
                         f"Process %d for test %s failed", i, test_name)
+                    process_failed = True
                 else:
                     logging.info(f"Process %s for test %s is completed successfully.",
                                  i, test_name)
@@ -497,6 +499,9 @@ class TestRunner:
             process_manager = None
             process_shared_dict = None
             processes = []
+        if process_failed:
+            self.network_mgr.stop_networks()
+            return False
         if not is_rebuild_network_mode(self.net_build_mode):
             self.network_mgr.reset_networks()
         else:

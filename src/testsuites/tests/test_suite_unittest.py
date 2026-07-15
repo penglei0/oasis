@@ -29,8 +29,8 @@ from testsuites.test_quic_perf import QuicPerfTest
 from testsuites.test_regular import RegularTest
 from testsuites.test_regular_benchmark import RegularBenchmarkTest
 
-_MP_BENCHMARK_PATH = Path(__file__).resolve().parents[4] / 'src' / 'tools' / 'mp_benchmark.py'
-_MP_BENCHMARK_SPEC = importlib.util.spec_from_file_location('mp_benchmark_under_test', _MP_BENCHMARK_PATH)
+_MP_BENCHMARK_PATH = Path(__file__).resolve().parents[3] / 'src' / 'tools' / 'http_benchmark.py'
+_MP_BENCHMARK_SPEC = importlib.util.spec_from_file_location('http_benchmark_under_test', _MP_BENCHMARK_PATH)
 mp_benchmark = importlib.util.module_from_spec(_MP_BENCHMARK_SPEC)
 sys.modules[_MP_BENCHMARK_SPEC.name] = mp_benchmark
 _MP_BENCHMARK_SPEC.loader.exec_module(mp_benchmark)
@@ -538,7 +538,8 @@ class TestFromToolDict(unittest.TestCase):
                 'test1', self.root_path)
 
     @patch('testsuites.test_regular_benchmark.time.sleep', return_value=None)
-    def test_regular_benchmark_passes_result_directory_to_roles(self, _sleep):
+    @patch.object(RegularBenchmarkTest, '_read_exit_status', return_value=0)
+    def test_regular_benchmark_passes_result_directory_to_roles(self, _status, _sleep):
         tool = {
             'name': 'benchmark',
             'profile': 'http_latency',
@@ -564,7 +565,8 @@ class TestFromToolDict(unittest.TestCase):
         self.assertIn(f'/usr/bin/regular_test.sh client {result_base_path}',
                       client.cmd.call_args.args[0])
 
-    def test_regular_benchmark_streams_client_wrapper_log(self):
+    @patch.object(RegularBenchmarkTest, '_read_exit_status', return_value=0)
+    def test_regular_benchmark_streams_client_wrapper_log(self, _status):
         tool = {
             'name': 'benchmark',
             'profile': 'http_latency',
@@ -603,16 +605,16 @@ class TestFromToolDict(unittest.TestCase):
         self.assertIn('[benchmark log] line two', '\n'.join(logs.output))
 
     @patch.object(mp_benchmark.time, 'sleep', return_value=None)
-    @patch.object(mp_benchmark, 'require_executable', return_value='/usr/bin/nas_app')
+    @patch.object(mp_benchmark, 'require_executable', return_value='/usr/bin/client_app')
     @patch.object(mp_benchmark, 'ManagedProcess')
     def test_mp_benchmark_redirects_nas_app_console_to_result_dir(
             self, managed_process, _require_executable, _sleep):
         config = mp_benchmark.ClientConfig(
-            nas_app_bin='nas_app',
-            nas_app_args='',
-            launch_nas_app=True,
-            nas_app_log=Path(self.root_path) / 'root_log',
-            nas_srv_log=Path(self.root_path) / 'server' / 'nas_srv.log',
+            client_app_bin='client_app',
+            client_app_args='',
+            launch_client_app=True,
+            client_app_log=Path(self.root_path) / 'root_log',
+            server_app_log=Path(self.root_path) / 'server' / 'server_app.log',
             result_dir=Path(self.root_path) / 'client',
             http_base_url='http://localhost:9443',
             tcp_proxy_host='localhost',
@@ -633,18 +635,18 @@ class TestFromToolDict(unittest.TestCase):
         managed_process.return_value.running.return_value = True
 
         runner = mp_benchmark.ClientRunner(config)
-        runner._start_nas()
+        runner._start_client_app()
 
         self.assertEqual(
             managed_process.call_args.args[2],
-            Path(self.root_path) / 'client' / 'nas_app.log')
+            Path(self.root_path) / 'client' / 'client_app.log')
         self.assertEqual(
-            runner.nas_srv_log_cursor.root,
-            Path(self.root_path) / 'server' / 'nas_srv.log')
+            runner.server_app_log_cursor.root,
+            Path(self.root_path) / 'server' / 'server_app.log')
 
     def test_mp_benchmark_download_uses_sender_nas_srv_path_pct(self):
-        server_log = Path(self.root_path) / 'server' / 'nas_srv.log'
-        receiver_log = Path(self.root_path) / 'client' / 'nas_app.log'
+        server_log = Path(self.root_path) / 'server' / 'server_app.log'
+        receiver_log = Path(self.root_path) / 'client' / 'client_app.log'
         server_log.parent.mkdir(parents=True)
         receiver_log.parent.mkdir(parents=True)
         server_log.write_text('', encoding='utf-8')
@@ -652,7 +654,7 @@ class TestFromToolDict(unittest.TestCase):
             '[D][receiver]Path ID: 1,CID: a, PCT(s): 99.00%\n',
             encoding='utf-8')
         config = mp_benchmark.ClientConfig(
-            'nas_app', '', False, receiver_log, server_log,
+            'client_app', '', False, receiver_log, server_log,
             Path(self.root_path) / 'client', 'http://localhost:9443',
             'localhost', 9443, 1, 10.0, 1, 100.0, 1, 1000,
             'goodput', ['10M'], ['10K'], 60.0, 2.0, 300.0)
@@ -701,8 +703,8 @@ class TestFromToolDict(unittest.TestCase):
     def test_mp_benchmark_http_proxy_ready_timeout_is_fixed(self, wait_for_http):
         result_dir = Path(self.root_path) / 'client'
         config = mp_benchmark.ClientConfig(
-            'nas_app', '', False, Path(self.root_path) / 'nas_app.log',
-            Path(self.root_path) / 'server' / 'nas_srv.log',
+            'client_app', '', False, Path(self.root_path) / 'client_app.log',
+            Path(self.root_path) / 'server' / 'server_app.log',
             result_dir, 'http://localhost:9443', 'localhost', 9443,
             1, 10.0, 1, 100.0, 1, 1000, 'readiness-only',
             ['10M'], ['10K'], 60.0, 0.0, 300.0)
@@ -722,8 +724,8 @@ class TestFromToolDict(unittest.TestCase):
         run_command.return_value = SimpleNamespace(
             returncode=0, stdout='0.001 200', stderr='')
         config = mp_benchmark.ClientConfig(
-            'nas_app', '', False, Path(self.root_path) / 'nas_app.log',
-            Path(self.root_path) / 'server' / 'nas_srv.log',
+            'client_app', '', False, Path(self.root_path) / 'client_app.log',
+            Path(self.root_path) / 'server' / 'server_app.log',
             Path(self.root_path) / 'client', 'http://localhost:9443',
             'localhost', 9443, 1, 10.0, 1, 100.0, 1, 1000,
             'http-latency', ['10M'], ['10K'], 60.0, 0.0, 300.0)

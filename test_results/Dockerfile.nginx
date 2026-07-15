@@ -1,0 +1,29 @@
+FROM docker.m.daocloud.io/nginx:latest
+ARG DEBIAN_FRONTEND=noninteractive
+
+COPY http_benchmark_report/ /usr/share/nginx/html/
+COPY http_goodput/ /usr/share/nginx/html/http_goodput/
+COPY http_latency/ /usr/share/nginx/html/http_latency/
+COPY http_goodput_single_path/ /usr/share/nginx/html/http_goodput_single_path/
+COPY http_latency_single_path/ /usr/share/nginx/html/http_latency_single_path/
+COPY http_goodput_high_rtt/ /usr/share/nginx/html/http_goodput_high_rtt/
+COPY http_latency_high_rtt/ /usr/share/nginx/html/http_latency_high_rtt/
+COPY http_goodput_single_path_high_rtt/ /usr/share/nginx/html/http_goodput_single_path_high_rtt/
+COPY http_latency_single_path_high_rtt/ /usr/share/nginx/html/http_latency_single_path_high_rtt/
+COPY visitor_counter.py /opt/http-benchmark/visitor_counter.py
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY docker-entrypoint.sh /usr/local/bin/http-benchmark-entrypoint.sh
+
+# replace the source list
+RUN cp /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list.d/debian.sources.bak && \
+     sed -i 's|http://deb.debian.org/debian|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources && \
+     sed -i 's|http://security.debian.org/debian-security|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources
+RUN set -eux; cat /etc/apt/sources.list.d/debian.sources
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && chmod +x /usr/local/bin/http-benchmark-entrypoint.sh
+
+EXPOSE 80
+
+ENTRYPOINT ["/usr/local/bin/http-benchmark-entrypoint.sh"]

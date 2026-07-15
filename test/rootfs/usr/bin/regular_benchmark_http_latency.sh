@@ -12,10 +12,10 @@ mkdir -p "$result_dir"
 
 if [ "$1" = "server" ]; then
     echo "Starting HTTP latency benchmark server..."
-    exec python3 /usr/bin/mp_benchmark.py server --result-dir "$result_dir"
+    exec python3 /usr/bin/http_benchmark.py server --server-app-bin app_server --server-app-args "" --result-dir "$result_dir"
 elif [ "$1" = "client" ]; then
     echo "Starting HTTP latency benchmark client..."
-    exec python3 /usr/bin/mp_benchmark.py client --test-category http-latency --http-request-count 1000 --result-dir "$result_dir"
+    exec python3 /usr/bin/http_benchmark.py client --client-app-bin app_client --test-category http-latency --small-files "10K,50K" --http-request-count 100 --result-dir "$result_dir"
 else
     echo "Invalid argument: $1" >&2
     exit 2
