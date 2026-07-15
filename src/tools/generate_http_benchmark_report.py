@@ -111,11 +111,9 @@ def svg_card(report_dir: Path, result: ResultRef, svg: Path) -> str:
     label = str(svg.relative_to(result.topology_dir))
     href = html.escape(rel_url(report_dir, svg), quote=True)
     chart_class = "chart"
-    if svg.name == "http_20M_goodput_summary.svg":
+    if "goodput_summary" in svg.stem:
         chart_class += " goodput-summary"
-    elif svg.name in {
-            "http_10K_latency_distribution.svg",
-            "http_50K_latency_distribution.svg"}:
+    elif "latency_distribution" in svg.stem:
         chart_class += " latency-distribution"
     return (
         f"<figure class='{chart_class}'>"
@@ -185,6 +183,86 @@ def oasis_log_viewer(report_dir: Path, log_file: Path) -> Path:
     return viewer
 
 
+MARKDOWN_IMAGE = re.compile(r"!\[([^]]*)\]\(([^\s)]+)(?:\s+['\"][^)]*['\"])?\)")
+HTML_IMAGE = re.compile(r"(<img\b[^>]*?\bsrc\s*=\s*['\"])([^'\"]+)(['\"])", re.IGNORECASE)
+
+
+def note_asset(results_dir: Path, report_dir: Path, reference: str) -> str:
+    """Copy a local note image and return its report-relative URL."""
+    if reference.startswith(("http://", "https://", "data:", "/")):
+        return reference
+    source = (results_dir / reference).resolve()
+    try:
+        source.relative_to(results_dir.resolve())
+    except ValueError:
+        return reference
+    if not source.is_file():
+        return reference
+    target = report_dir / "html_assets" / source.relative_to(results_dir.resolve())
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    return quote(os.path.relpath(target, report_dir), safe="/._-()")
+
+
+def render_report_note(results_dir: Path, report_dir: Path) -> str:
+    """Render the optional Markdown/HTML note shown on the report index."""
+    note_file = results_dir / "html.txt"
+    if not note_file.is_file():
+        return ""
+    source = note_file.read_text(encoding="utf-8", errors="replace").strip()
+    if not source:
+        return ""
+
+    def replace_markdown_image(match: re.Match[str]) -> str:
+        alt, reference = match.groups()
+        src = note_asset(results_dir, report_dir, reference)
+        return (f"<img class='report-note-image' src='{html.escape(src, quote=True)}' "
+                f"alt='{html.escape(alt, quote=True)}'>")
+
+    def replace_html_image(match: re.Match[str]) -> str:
+        src = note_asset(results_dir, report_dir, match.group(2))
+        return f"{match.group(1)}{html.escape(src, quote=True)}{match.group(3)}"
+
+    rendered_lines = []
+    in_list = False
+    for line in source.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("<"):
+            if in_list:
+                rendered_lines.append("</ul>")
+                in_list = False
+            rendered_lines.append(HTML_IMAGE.sub(replace_html_image, line))
+            continue
+        if not stripped:
+            if in_list:
+                rendered_lines.append("</ul>")
+                in_list = False
+            continue
+        heading = re.match(r"^(#{1,6})\s+(.+)$", stripped)
+        if heading:
+            level, text = len(heading.group(1)), heading.group(2)
+            rendered_lines.append(f"<h{level}>{html.escape(text)}</h{level}>")
+            continue
+        item = re.match(r"^[-*+]\s+(.+)$", stripped)
+        if item:
+            if not in_list:
+                rendered_lines.append("<ul>")
+                in_list = True
+            rendered_lines.append(
+                f"<li>{MARKDOWN_IMAGE.sub(replace_markdown_image, html.escape(item.group(1)))}</li>")
+            continue
+        if in_list:
+            rendered_lines.append("</ul>")
+            in_list = False
+        escaped = html.escape(stripped)
+        escaped = MARKDOWN_IMAGE.sub(replace_markdown_image, escaped)
+        escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
+        rendered_lines.append(f"<p>{escaped}</p>")
+    if in_list:
+        rendered_lines.append("</ul>")
+    return "<section class='report-note'>" + "".join(rendered_lines) + "</section>"
+
+
 def evidence_links(report_dir: Path, result: ResultRef) -> str:
     files = sorted(
         p for p in result.topology_dir.rglob("*")
@@ -205,7 +283,7 @@ def result_block(report_dir: Path, result: ResultRef, title: str,
     return (f"<article class='result'><h3>{html.escape(title)} "
             f"<span class='topology'>topology-{html.escape(result.topology_id)}</span></h3>"
             f"<pre>{description}</pre>{svg_gallery(report_dir, result)}"
-            f"<p>{result_link(report_dir, result.topology_dir, 'Logs and Evidences')}</p>"
+            f"<p>{result_link(report_dir, result.topology_dir, 'Logs & Evidences')}</p>"
             f"{evidence_links(report_dir, result)}</article>")
 
 
@@ -223,9 +301,9 @@ def comparison_block(report_dir: Path, multipath: ResultRef | None,
             f"single topology-{html.escape(single_path.topology_id)}</span></h3>"
             f"<pre>{description}</pre>"
             f"{comparison_gallery(report_dir, multipath, single_path)}"
-            "<h4>多路径 Logs and Evidences</h4>"
+            "<h4>多路径 Logs &amp; Evidences</h4>"
             f"{evidence_links(report_dir, multipath)}"
-            "<h4>单路径 Logs and Evidences</h4>"
+            "<h4>单路径 Logs &amp; Evidences</h4>"
             f"{evidence_links(report_dir, single_path)}</article>")
 
 
@@ -240,12 +318,11 @@ def page_html(
     rpath, dpath = key
     parts = [
         "<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>",
-        f"<title>MP benchmark: {html.escape(setup_label(rpath))} / "
+        f"<title>HTTP benchmark: {html.escape(setup_label(rpath))} / "
         f"{html.escape(setup_label(dpath))}</title>",
         STYLE,
         "</head><body>",
         f"<p>{result_link(report_dir, index_file, 'Back to result matrix')}</p>",
-        "<h1>MP benchmark result</h1>",
         "<h2>多路径测试结果</h2>",
     ]
     for category, _single_category, title in category_pairs:
@@ -288,15 +365,17 @@ body{font-family:Arial,'Noto Sans SC',sans-serif;color:#20252b;margin:2rem;line-
 h1,h2{color:#17324d}h2{border-bottom:2px solid #d7e1ea;padding-bottom:.35rem;margin-top:2rem}
 a{color:#075da8}.muted{color:#68737d}.topology{font-size:.8em;color:#68737d}
 pre{background:#f4f6f8;border:1px solid #d9e0e6;padding:.8rem;white-space:pre-wrap}
+.report-note{margin:1rem 0}.report-note-image{display:block;max-width:100%;height:auto;margin:.75rem auto}
 table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ccd5dd;padding:.55rem;vertical-align:top;text-align:left}
 th{background:#edf2f6}.matrix{font-size:.9rem}.matrix th{min-width:10rem}.matrix td{min-width:7rem;text-align:center}.empty{color:#9aa5ad;text-align:center!important}
 .result{border:1px solid #d5dde5;padding:1rem;margin:1rem 0;background:#fbfcfd}.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
 .gallery.vertical{display:flex;flex-direction:column;align-items:stretch}.gallery.vertical .chart{max-width:100%}
 .chart{margin:0;border:1px solid #d5dde5;background:white;padding:.5rem}.chart img{display:block;max-width:100%;width:auto;height:auto;max-height:420px;margin:0 auto}.chart figcaption{font-size:.85rem;margin-top:.4rem;overflow-wrap:anywhere}
 .chart.goodput-summary img{max-height:647px}.chart.latency-distribution img{max-height:454px}
-.comparison-gallery{display:flex;flex-direction:column;gap:1rem}.comparison-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.compare-pane{min-width:0}.compare-pane h4{margin:.25rem 0;color:#53616d}.compare-pane .chart{height:100%;box-sizing:border-box}
+.comparison-gallery{display:flex;flex-direction:column;gap:1.5rem;clear:both}.comparison-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:1rem;min-width:0}.compare-pane{display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:0}.compare-pane h4{margin:.25rem 0 .6rem;color:#53616d}.compare-pane .chart{height:auto;min-height:0;box-sizing:border-box}
 .logs{display:flex;flex-wrap:nowrap;gap:1.25rem;list-style:none;margin:.5rem 0;padding:0;white-space:nowrap}.logs li{margin:0}
 .page-status{font:600 .9rem monospace;color:#53616d;margin-bottom:.75rem}
+@media (max-width:800px){.comparison-row{grid-template-columns:1fr}}
 </style>"""
 
 
@@ -388,9 +467,10 @@ def generate(results_dir: Path, output_dir: Path) -> Path:
 
     html_parts = [
         "<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>",
-        "<title>MP benchmark result matrix</title>", STYLE,
+        "<title>HTTP benchmark matrix</title>", STYLE,
         "</head><body>", PAGE_STATUS,
-        "<h1>MP benchmark result matrix</h1>",
+        "<h1>HTTP benchmark matrix</h1>",
+        render_report_note(results_dir, output_dir),
         *index_sections,
         "<p class='oasis-log'>"
         "<a href='log_pages/oasis.log.html'>Oasis execution log (oasis.log)</a></p>",
