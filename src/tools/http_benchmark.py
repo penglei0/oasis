@@ -791,7 +791,7 @@ def write_goodput_summary_svg(
  height="{height}" viewBox="0 0 {width} {height}">
   <rect width="100%" height="100%" fill="white"/>
   <text x="480" y="34" text-anchor="middle" font-family="sans-serif"
- font-size="20">HTTP download goodput summary {html.escape(label)}</text>
+ font-size="20">HTTP download {html.escape(label)}</text>
   <line x1="480" y1="74" x2="480" y2="386" stroke="#cbd5e0"/>
   <text x="240" y="122" text-anchor="middle" font-family="sans-serif"
  font-size="15" fill="#52606d">Average goodput ({repeats} downloads)</text>
