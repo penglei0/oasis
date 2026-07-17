@@ -174,7 +174,7 @@ def final_path_pct(result: ResultRef) -> dict[str, float]:
     candidates = sorted(
         path for path in result.topology_dir.rglob("*.log")
         if path.parent.name == "server"
-        and path.name in {"nas_srv.log", "server_app.log"}
+        and path.name in {"server_app.log"}
     )
     latest: dict[str, float] = {}
     coherent: dict[str, float] = {}
@@ -299,6 +299,17 @@ def oasis_log_viewer(report_dir: Path, log_file: Path) -> Path:
     return viewer
 
 
+def remove_endpoint_log_viewers(report_dir: Path) -> None:
+    """Remove endpoint log pages left by an earlier report generation."""
+    log_pages = report_dir / "log_pages"
+    if not log_pages.is_dir():
+        return
+    viewer_names = {f"{name}.html" for name in ENDPOINT_LOG_NAMES}
+    for viewer in log_pages.rglob("*.html"):
+        if viewer.name in viewer_names:
+            viewer.unlink()
+
+
 MARKDOWN_IMAGE = re.compile(r"!\[([^]]*)\]\(([^\s)]+)(?:\s+['\"][^)]*['\"])?\)")
 HTML_IMAGE = re.compile(r"(<img\b[^>]*?\bsrc\s*=\s*['\"])([^'\"]+)(['\"])", re.IGNORECASE)
 
@@ -379,10 +390,18 @@ def render_report_note(results_dir: Path, report_dir: Path) -> str:
     return "<section class='report-note'>" + "".join(rendered_lines) + "</section>"
 
 
-def evidence_links(report_dir: Path, result: ResultRef) -> str:
+ENDPOINT_LOG_NAMES = {
+    "client_app.log", "server_app.log",
+    "dufs.log",
+}
+
+
+def evidence_links(report_dir: Path, result: ResultRef,
+                   include_log_links: bool = True) -> str:
     files = sorted(
         p for p in result.topology_dir.rglob("*")
-        if p.is_file() and p.match("*.log"))
+        if p.is_file() and p.match("*.log")
+        and (include_log_links or p.name not in ENDPOINT_LOG_NAMES))
     if not files:
         return "<p class='muted'>No logs or evidence files found.</p>"
     links = []
@@ -394,13 +413,14 @@ def evidence_links(report_dir: Path, result: ResultRef) -> str:
 
 
 def result_block(report_dir: Path, result: ResultRef, title: str,
-                 include_rpath: bool = True) -> str:
+                 include_rpath: bool = True,
+                 include_log_links: bool = True) -> str:
     description = html.escape(short_description(result, include_rpath))
     return (f"<article class='result'><h3>{html.escape(title)} "
             f"<span class='topology'>topology-{html.escape(result.topology_id)}</span></h3>"
             f"<pre>{description}</pre>{svg_gallery(report_dir, result)}"
             f"<p>{result_link(report_dir, result.topology_dir, 'Logs & Evidences')}</p>"
-            f"{evidence_links(report_dir, result)}</article>")
+            f"{evidence_links(report_dir, result, include_log_links)}</article>")
 
 
 def page_name(case_number: int, index: int) -> str:
@@ -408,19 +428,21 @@ def page_name(case_number: int, index: int) -> str:
 
 
 def comparison_block(report_dir: Path, multipath: ResultRef | None,
-                     single_path: ResultRef, title: str) -> str:
+                     single_path: ResultRef, title: str,
+                     include_log_links: bool = True) -> str:
     description = html.escape(short_description(multipath, include_rpath=True))
     if multipath is None:
-        return result_block(report_dir, single_path, title, include_rpath=False)
+        return result_block(report_dir, single_path, title, include_rpath=False,
+                            include_log_links=include_log_links)
     return (f"<article class='result'><h3>{html.escape(title)} "
             f"<span class='topology'>multi topology-{html.escape(multipath.topology_id)} / "
             f"single topology-{html.escape(single_path.topology_id)}</span></h3>"
             f"<pre>{description}</pre>"
             f"{comparison_gallery(report_dir, multipath, single_path)}"
             "<h4>多路径 Logs &amp; Evidences</h4>"
-            f"{evidence_links(report_dir, multipath)}"
+            f"{evidence_links(report_dir, multipath, include_log_links)}"
             "<h4>单路径 Logs &amp; Evidences</h4>"
-            f"{evidence_links(report_dir, single_path)}</article>")
+            f"{evidence_links(report_dir, single_path, include_log_links)}</article>")
 
 
 def page_html(
@@ -430,7 +452,8 @@ def page_html(
         single_path: dict[str, ResultRef],
         index_file: Path,
         *,
-        category_pairs: tuple[tuple[str, str, str], ...]) -> str:
+        category_pairs: tuple[tuple[str, str, str], ...],
+        include_log_links: bool = True) -> str:
     rpath, dpath = key
     parts = [
         "<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>",
@@ -445,9 +468,11 @@ def page_html(
         multi_result = multipath.get(category)
         single_result = single_path.get(_single_category)
         if multi_result and single_result:
-            parts.append(comparison_block(report_dir, multi_result, single_result, title))
+            parts.append(comparison_block(
+                report_dir, multi_result, single_result, title, include_log_links))
         elif multi_result:
-            parts.append(result_block(report_dir, multi_result, title))
+            parts.append(result_block(report_dir, multi_result, title,
+                                      include_log_links=include_log_links))
         else:
             parts.append(f"<article class='result'><h3>{title}</h3>"
                          "<p class='muted'>Result not found.</p></article>")
@@ -535,8 +560,11 @@ PAGE_STATUS = """<div class='page-status' id='page-status'>Visitors: -- | Time o
 </script>"""
 
 
-def generate(results_dir: Path, output_dir: Path) -> Path:
+def generate(results_dir: Path, output_dir: Path,
+             include_log_links: bool = True) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
+    if not include_log_links:
+        remove_endpoint_log_viewers(output_dir)
     index_file = output_dir / "index.html"
     oasis_log = results_dir / "oasis.log"
     if oasis_log.is_file():
@@ -581,7 +609,8 @@ def generate(results_dir: Path, output_dir: Path) -> Path:
             single_matches = single_by_dpath.get(key[1], {})
             (output_dir / filename).write_text(
                 page_html(output_dir, key, multipath_by_key[key], single_matches,
-                          index_file, category_pairs=category_pairs), encoding="utf-8")
+                          index_file, category_pairs=category_pairs,
+                          include_log_links=include_log_links), encoding="utf-8")
 
         keys = sorted(multipath_by_key)
         pct_images = {
@@ -616,10 +645,18 @@ def main() -> int:
     parser.add_argument("--results-dir", type=Path, default=Path("test_results"))
     parser.add_argument("--output-dir", type=Path,
                         default=Path("test_results/http_benchmark_report"))
+    parser.add_argument(
+        "--include-log-links",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=("include endpoint application log links in case pages "
+              "(wrapper.log and oasis.log are always included)"),
+    )
     args = parser.parse_args()
     if not args.results_dir.is_dir():
         parser.error(f"results directory does not exist: {args.results_dir}")
-    output = generate(args.results_dir.resolve(), args.output_dir.resolve())
+    output = generate(args.results_dir.resolve(), args.output_dir.resolve(),
+                      include_log_links=args.include_log_links)
     print(f"Wrote {output}")
     return 0
 
