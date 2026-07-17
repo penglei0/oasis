@@ -1,19 +1,14 @@
 #!/bin/sh
 
-install_benchmark_profile() {
-    profile="$1"
-    template="/usr/bin/regular_benchmark_${profile}.sh"
-    if [ ! -f "$template" ]; then
-        echo "Unknown benchmark profile: $profile" >&2
-        exit 2
-    fi
-    cp "$template" /usr/bin/regular_test.sh
-    chmod 755 /usr/bin/regular_test.sh
-}
+set -u
 
-if [ "${1:-}" = "--benchmark-profile" ]; then
-    [ -n "${2:-}" ] || { echo "--benchmark-profile requires a profile" >&2; exit 2; }
-    install_benchmark_profile "$2"
+usr_sbin_dir="${OASIS_USR_SBIN_DIR:-/usr/sbin}"
+ln -sfn install_regular_benchmark_profile.sh "${usr_sbin_dir}/install_benchmark_profile.sh"
+
+node_init_marker="${OASIS_RUNTIME_DIR:-/run/oasis}/node_initialized"
+mkdir -p "$(dirname "$node_init_marker")"
+if [ -f "$node_init_marker" ]; then
+    echo "Node common initialization already completed; skipping."
     exit 0
 fi
 
@@ -27,10 +22,15 @@ init_ssh() {
     # fix: Permissions 0644 for '/root/.ssh/id_rsa' are too open
     chmod 600 /root/.ssh/id_rsa
     chmod 600 /root/.ssh/id_rsa.pub
-    echo 'PermitRootLogin yes' | tee -a /etc/ssh/sshd_config
-    echo 'PasswordAuthentication no' | tee -a /etc/ssh/sshd_config
-    echo 'StrictModes no' | tee -a /etc/ssh/sshd_config
+    ensure_sshd_config 'PermitRootLogin yes'
+    ensure_sshd_config 'PasswordAuthentication no'
+    ensure_sshd_config 'StrictModes no'
     service ssh start
+}
+
+ensure_sshd_config() {
+    setting="$1"
+    grep -qxF "$setting" /etc/ssh/sshd_config || printf '%s\n' "$setting" >> /etc/ssh/sshd_config
 }
 
 init_library() {
@@ -39,3 +39,4 @@ init_library() {
 
 init_ssh
 init_library
+printf '%s\n' "initialized" > "$node_init_marker"

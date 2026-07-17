@@ -12,6 +12,7 @@ from .test import ITestSuite, TestConfig, TestType, register_test_suite
 
 
 PROFILES = frozenset({"http_latency", "http_goodput"})
+PROFILE_INSTALLER = "/usr/sbin/install_benchmark_profile.sh"
 
 
 @register_test_suite("benchmark", test_type=TestType.regular_benchmark)
@@ -45,7 +46,7 @@ class RegularBenchmarkTest(ITestSuite):
         return True
 
     def _install_profile(self, host) -> None:
-        host.cmd(f"/usr/sbin/init_node.sh --benchmark-profile {shlex.quote(self.profile)}")
+        host.cmd(f"{PROFILE_INSTALLER} {shlex.quote(self.profile)}")
 
     @staticmethod
     def _read_exit_status(status_path: str):

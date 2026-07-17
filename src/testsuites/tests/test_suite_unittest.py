@@ -556,6 +556,8 @@ class TestFromToolDict(unittest.TestCase):
         self.assertTrue(suite._run_test(_StubNetwork([client, server]), None))
 
         result_base_path = os.path.dirname(os.path.splitext(suite.result.record)[0])
+        server.cmd.assert_any_call('/usr/sbin/install_benchmark_profile.sh http_latency')
+        client.cmd.assert_any_call('/usr/sbin/install_benchmark_profile.sh http_latency')
         self.assertIn(f'/usr/bin/regular_test.sh server {result_base_path}',
                       server.cmd.call_args_list[1].args[0])
         self.assertIn('setsid', server.cmd.call_args_list[1].args[0])

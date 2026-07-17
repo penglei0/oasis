@@ -1,33 +1,6 @@
 # Benchmark Test Suite
 
-`benchmark` is a role-based Oasis suite.
-It does not resolve peer IP addresses or forwarded ports. Oasis only selects
-the two nodes, invokes `/usr/bin/regular_test.sh server` on the server node,
-then invokes `/usr/bin/regular_test.sh client` on the client node.
-
-Profiles are installed by the node init script:
-
-```sh
-/usr/sbin/init_node.sh --benchmark-profile http_latency
-/usr/sbin/init_node.sh --benchmark-profile http_goodput
-```
-
-The profile templates are under `test/rootfs/usr/bin/` and become
-`/usr/bin/regular_test.sh`. The wrappers require `/usr/bin/http_benchmark.py`
-to be installed in the same rootfs before running an Oasis test. When Oasis
-is used as the `oasis_src` submodule, `src/tools/run_test.sh` automatically
-copies the parent repository's `src/tools/http_benchmark.py` into the rootfs.
-Set `HTTP_BENCHMARK_SOURCE=/path/to/http_benchmark.py` to use another source.
-
-Run the supplied definitions with:
-
-```sh
-./src/tools/run_test.sh benchmark-test-example.yaml:http_latency --cleanup
-./src/tools/run_test.sh benchmark-test-example.yaml:http_goodput --cleanup
-``` 
-
 ## Benchmark Metrics
-
 - 1. file download speed (avg) for 20MB, 20 times each
 - 2. file download completion time (avg) for 20MB, 20 times each
 - 3. flow distribution on different paths for 1/2.
@@ -66,7 +39,7 @@ pattern can replace them. The endpoint binaries are selected with
 To setup the correct endpoint applications, do changes to the following scripts:
 ```bash
 test/rootfs/usr/bin/regular_benchmark_http_latency.sh
-test/rootfs/usr/bin/regular_benchmark_http_gooudput.sh
+test/rootfs/usr/bin/regular_benchmark_http_goodput.sh
 ```
 
 ### Data flow
