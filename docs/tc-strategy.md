@@ -142,6 +142,13 @@ h0-eth0 <---- 8 Mbps, 10 ms ----> h1-eth0
 h0-eth1 <---- 24 Mbps, 25 ms ---> h1-eth1
 ```
 
+## Loss model in TC
+
+1. 4-state Markov chain 
+
+https://www.man7.org/linux/man-pages/man8/tc-netem.8.html?theme=2019/1000
+
+
 The `tbf` rate and ingress `netem` parameters for each link are identical on
 the two endpoint interfaces. Changing the `rpath` profile therefore changes
 only the relay link; it does not change the direct link's attributes.
