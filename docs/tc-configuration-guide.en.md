@@ -94,18 +94,47 @@ Configuring `delay TIME JITTER` without considering transport filters and kernel
 1. **Bound `JITTER / TIME` to avoid contaminating BBR's `RTprop` (minimum-RTT filter).**
    - **Mechanism:** BBR tracks the path's minimum round-trip propagation time using a 10-second minimum filter, `RTprop = min(RTT)`, and uses it to calculate the target congestion window: `cwnd = cwnd_gain × BtlBw × RTprop`.
    - **Risk:** The Normal distribution table extends down to **`−4.0σ`**. With one-way `delay 40ms 15ms distribution normal` (mean RTT `80ms` when both directions are symmetric), a `−3σ` sample can make the one-way delay approach zero or go negative. If an unusually small sample enters BBR's 10-second `min_rtt` window, it can keep `RTprop` far below the intended baseline, understate BDP, constrain `cwnd`, and prevent the flow from filling the link even with no packet loss.
-   - **Guidance:**
-     - With `normal`, keep **`JITTER ≤ TIME / 4`**; for steady scenarios, use `JITTER = 10%–20% × TIME`.
-     - For large positive delay spikes, prefer **`pareto`** (lower bound near `−0.67σ`, positive tail up to `+4.0σ`) or **`paretonormal`** (lower bound near `−1.50σ`). These permit positive spikes without driving the configured delay below the physical minimum.
+   - **Amplitude rule:**
+     - With `uniform` (omit `distribution`; lower bound `−1.0σ`), keep **`JITTER ≤ TIME / 3`** (typically `10%–20% × TIME`).
+     - With `normal` (lower bound `−4.0σ`), keep **`JITTER ≤ TIME / 4`** (typically `10%–15% × TIME` for steady wired paths).
+     - For large positive delay spikes, prefer **`pareto`** (lower bound near `−0.67σ`, positive tail up to `+4.0σ`) or **`paretonormal`** (lower bound near `−1.50σ`, positive tail up to `+3.88σ`). These permit strong positive spikes without driving the configured delay below the physical minimum.
 
 2. **Use `CORRELATION` (recommended `25%–50%`) to reduce unrealistic jitter-induced reordering.**
    - **Mechanism:** `sch_netem` uses a red-black-tree time FIFO (`tfifo`) ordered by each packet's scheduled `time_to_send = now + delay`. At `100 Mbps`, the serialization interval for a `1500B` packet is only **`0.12 ms`**. If a later packet is assigned a delay more than `0.12 ms` shorter than its predecessor, it can overtake that packet in the queue and be released first. *(On modern Linux, `tfifo` performs time-based ordering before packets are handed to a child qdisc; the older manual suggestion to attach a child `pfifo` does not undo that ordering.)*
    - **Risk:** With completely independent samples (`CORRELATION = 0%`), millisecond-scale jitter can cause frequent reordering. Traditional TCP may mistake it for loss after three duplicate ACKs, or increase its RACK reordering window and delay recovery. It can also affect BBR's ACK aggregation (`extra_acked`) and delivery-rate sampling.
-   - **Guidance:** Queueing delay in real networks is temporally correlated because adjacent packets often experience similar backlog. **When configuring `JITTER`, consider adding `25%–50%` correlation** to smooth adjacent samples:
+   - **Correlation rule:** Queueing delay in real networks is temporally correlated because adjacent packets often experience similar backlog. **Whenever `JITTER` is configured, add `25%–50%` correlation** to smooth adjacent delay samples.
 
+3. **Configuration guidelines: recommended `tc` commands per distribution**
+   Combining the `JITTER / TIME` bounds, temporal correlation, and overflow-safe queue sizing (using a `100 Mbps` bottleneck and a `50 ms` one-way base delay on receiver `ifb0` as the reference), use the following templates for each distribution:
+   - **Fixed delay (zero-jitter baseline):** Constant one-way propagation delay with zero reordering, used to calibrate baseline `RTprop`, BDP, and theoretical throughput:
      ```bash
-     # Example: 40 ms one-way base delay, 6 ms jitter, 30% correlation, mixed long tail
-     delay 40ms 6ms 30% distribution paretonormal
+     tc qdisc replace dev ifb0 root netem \
+       limit 3000 \
+       delay 50ms
+     ```
+   - **Uniform:** Bounded flat variation over `[42ms, 58ms]` (`JITTER = 8ms ≤ TIME / 3`) with `25%` correlation; **omit `distribution` to invoke the kernel's uniform fallback** (explicit `distribution uniform` fails when `uniform.dist` is absent):
+     ```bash
+     tc qdisc replace dev ifb0 root netem \
+       limit 3000 \
+       delay 50ms 8ms 25%
+     ```
+   - **Normal:** Symmetric micro-queueing jitter on stable multi-hop wired links, keeping `JITTER = 6ms ≤ TIME / 4` (extreme lower bound `26ms`, protecting BBR `RTprop`) with `30%` correlation:
+     ```bash
+     tc qdisc replace dev ifb0 root netem \
+       limit 3000 \
+       delay 50ms 6ms 30% distribution normal
+     ```
+   - **Pareto:** Lower bound near `40ms` with heavy positive `P99` spikes up to `110ms` (for RTO spurious-timeout and P99/P999 tail-latency stress tests); raise `limit` to `4000` to absorb the longer effective residence tail, with `35%` correlation:
+     ```bash
+     tc qdisc replace dev ifb0 root netem \
+       limit 4000 \
+       delay 50ms 15ms 35% distribution pareto
+     ```
+   - **Paretonormal (preferred default for realistic weak networks):** Lower bound near `38ms` without distorting BBR `min_rtt`, combining everyday Gaussian micro-jitter with long-tail spikes up to `~81ms` and `30%` correlation:
+     ```bash
+     tc qdisc replace dev ifb0 root netem \
+       limit 3000 \
+       delay 50ms 8ms 30% distribution paretonormal
      ```
 
 ---

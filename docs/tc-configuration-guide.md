@@ -86,17 +86,47 @@ loss state 0.6% 30% 20% 50% 0.5%
 1. **严格限制 `JITTER / TIME` 比例，防止污染 BBR 的 `RTprop`（最小 RTT 滤波器）**
    - **机理**：BBR 通过 10 秒时间窗的最小值滤波器跟踪路径最小往返传播时延 $\text{RTprop} = \min(\text{RTT})$，并据此计算目标拥塞窗口 $\text{cwnd} = \text{cwnd\_gain} \times \text{BtlBw} \times \text{RTprop}$。
    - **风险**：在 `distribution normal` 下，分布表下界深达 **$-4.0\sigma$**！若配置单向 `delay 40ms 15ms distribution normal`（双边 RTT 均值 `80ms`），$-3\sigma$ 抽样会频繁产生接近 `0ms` 的单向延迟；BBR 的 10 秒 `min_rtt` 窗口只要捕获一次极小样本，就会把 `RTprop` 锁定在远低于真实基线的值，导致 **BBR 计算出的 BDP 严重偏小、`cwnd` 被迫受限，在零丢包下莫名跑不满带宽**。
-   - **配置准则**：
-     - 使用 `normal` 时，确保 **`JITTER ≤ TIME / 4`**（常规稳态推荐 `JITTER = 10% ~ 20% × TIME`）。
-     - 需要模拟大跨度正向延迟毛刺时，优先使用 **`pareto`**（下探仅 $-0.67\sigma$，正向长尾达 $+4.0\sigma$）或 **`paretonormal`**（下探仅 $-1.50\sigma$），既能制造剧烈正向排队尖峰，又不会击穿物理最小传播时延下界。
+   - **抖动幅度准则**：
+     - `uniform`（省略 `distribution`，下界为 $-1.0\sigma$）：确保 **`JITTER ≤ TIME / 3`**，常规取 `TIME` 的 `10% ~ 20%`。
+     - `normal`（下界为 $-4.0\sigma$）：确保 **`JITTER ≤ TIME / 4`**；对于稳定有线网络，常规取 `TIME` 的 `10% ~ 15%`。
+     - 需要模拟大幅正向时延尖峰时，优先选择 **`pareto`**（下界约为 $-0.67\sigma$，正向长尾可达 $+4.0\sigma$）或 **`paretonormal`**（下界约为 $-1.50\sigma$，正向长尾可达 $+3.88\sigma$）。这两种分布可以产生明显的正向尖峰，同时避免配置时延低于物理传播下界。
 
 2. **必配 `CORRELATION`（推荐 `25% ~ 50%`），抑制非真实的“抖动乱序风暴”**
    - **机理**：`sch_netem` 内部使用按预计发送时刻 `time_to_send = now + delay` 排序的红黑树队列（`tfifo`）。在 `100 Mbps` 链路上，`1500B` 数据包到达间隔仅 **`0.12 ms`**！只要后一包抽到的随机延迟比前一包小 `0.12 ms` 以上，后包就会在 `netem` 中超越前包提前出队，产生**包乱序（Packet Reordering）**。（*注：现代 Linux 内核中 `tfifo` 在移交子 qdisc 前已完成定时排序，旧手册中挂载子 `pfifo` 的做法已无法消除该乱序。*）
    - **风险**：完全独立（`CORRELATION = 0%`）的毫秒级抖动会让几乎所有相邻包发生剧烈乱序，导致传统 TCP 频繁误判 3-dupACK 伪丢包降窗（或被迫撑大 RACK 乱序等待窗增加恢复延迟），同时干扰 BBR 的 ACK 聚合度（`extra_acked`）与交付速率采样。
-   - **配置准则**：真实网络中的排队延迟具有强时间自相关性（相邻包经历几乎相同的队列积压）。**凡配置 `JITTER`，建议同步加上 `25% ~ 50%` 的相关性参数**，平滑相邻包延迟跳变：
+   - **相关性准则**：真实网络中的排队时延具有时间相关性，相邻分组往往经历相似的队列积压。**配置 `JITTER` 时应同时加入 `25% ~ 50%` 的相关性**，平滑相邻分组的时延变化。
+
+3. **配置准则（各分布的推荐 `tc` 命令）**
+   以下示例以 `100 Mbps` 瓶颈、接收端 `ifb0`、单向基准时延 `50 ms` 为参考，并兼顾 `JITTER / TIME` 幅度、时间相关性及队列容量，分别给出五种模式的配置：
+   - **固定延迟（零抖动基线）**：恒定单向传播时延且不引入抖动乱序，适合标定基础 `RTprop`、BDP 和理论吞吐上限：
      ```bash
-     # 推荐范式：单向基准 40ms，抖动 6ms，时间自相关 30%，混合长尾分布
-     delay 40ms 6ms 30% distribution paretonormal
+     tc qdisc replace dev ifb0 root netem \
+       limit 3000 \
+       delay 50ms
+     ```
+   - **Uniform（均匀分布）**：在 `[42ms, 58ms]` 区间内均匀波动（`JITTER = 8ms ≤ TIME / 3`），相关性取 `25%`。**省略 `distribution` 参数以使用内核的均匀分布回退**；显式设置 `distribution uniform` 时，如果系统没有 `uniform.dist`，命令会报错：
+     ```bash
+     tc qdisc replace dev ifb0 root netem \
+       limit 3000 \
+       delay 50ms 8ms 25%
+     ```
+   - **Normal（正态分布）**：用于模拟稳定多跳有线网络中的微小排队波动。将 `JITTER` 限制为 `6ms ≤ TIME / 4`，使极端下界约为 `26ms`，降低极小样本拉低 BBR `RTprop` 的风险；相关性取 `30%`：
+     ```bash
+     tc qdisc replace dev ifb0 root netem \
+       limit 3000 \
+       delay 50ms 6ms 30% distribution normal
+     ```
+   - **Pareto（帕累托重尾分布）**：下界约为 `40ms`，正向 `P99` 尖峰可达 `110ms`，适合测试 RTO 伪超时防护与 P99/P999 尾时延。长尾会增加分组在队列中的驻留时间，因此将 `limit` 提高到 `4000`，相关性取 `35%`：
+     ```bash
+     tc qdisc replace dev ifb0 root netem \
+       limit 4000 \
+       delay 50ms 15ms 35% distribution pareto
+     ```
+   - **Paretonormal（混合分布，真实弱网首选）**：下界约为 `38ms`，有助于避免干扰 BBR `min_rtt`；同时兼具日常高斯微抖动和最高约 `81ms` 的长尾尖峰，相关性取 `30%`：
+     ```bash
+     tc qdisc replace dev ifb0 root netem \
+       limit 3000 \
+       delay 50ms 8ms 30% distribution paretonormal
      ```
 
 ---
