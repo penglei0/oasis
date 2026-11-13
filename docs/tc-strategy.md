@@ -1,5 +1,10 @@
 # Traffic control (tc)
 
+For queueing theory, delay/loss models, queue sizing, and the rationale for
+applying impairments at sender egress versus receiver ingress, see the
+[tc configuration guide](./tc-configuration-guide.en.md) (also available in
+[简体中文](./tc-configuration-guide.md)).
+
 ## tc in Linux
 
 In Linux, traffic control for shaping network flows is configured using the `tc` command. See details in [tc(8)](https://www.man7.org/linux/man-pages/man8/tc.8.html)
@@ -49,7 +54,12 @@ Finally, apply the traffic shaping(loss, delay, jitter) on `ifb0`:
 tc qdisc add dev ifb0 root netem loss 5% delay 10ms limit 20000000
 ```
 
-In order to have a better simulation result for latency, a larger buffer/queue size is preferred(specified by `limit 20000000` in tc command) otherwise tc will drop more packets when buffer is overwhelmed.
+For higher-delay simulations, the queue must be large enough for the expected
+in-flight packets or it may add unintended queue-overflow loss. In `netem`,
+`limit` is a packet count (not bytes); the large `20000000` value above is a
+legacy illustrative ceiling, not a recommended default. Size it from the
+bandwidth-delay product, converted to packets, and avoid an unnecessarily large
+queue that can hide congestion or add bufferbloat.
 
 ## tc_rules script
 
@@ -84,10 +94,10 @@ adjacency matrix to create physical links. For every `adj[i][j] == 1` where
 `i < j`, it creates one link. The lower matrix cells do not create another
 link; they configure the reverse direction on that same physical link.
 
-| Traffic direction | Bandwidth | Ingress shaping |
-| --- | --- | --- |
-| `h{i} -> h{j}` | `BW[i][j]` | `LOSS[i][j]`, `LATENCY[i][j]`, `JITTER[i][j]` |
-| `h{j} -> h{i}` | `BW[j][i]` | `LOSS[j][i]`, `LATENCY[j][i]`, `JITTER[j][i]` |
+| Traffic direction | Bandwidth  | Ingress shaping                               |
+| ----------------- | ---------- | --------------------------------------------- |
+| `h{i} -> h{j}`    | `BW[i][j]` | `LOSS[i][j]`, `LATENCY[i][j]`, `JITTER[i][j]` |
+| `h{j} -> h{i}`    | `BW[j][i]` | `LOSS[j][i]`, `LATENCY[j][i]`, `JITTER[j][i]` |
 
 Example:
 
@@ -129,10 +139,10 @@ two physical links; they are not opposite traffic directions.
 Each physical link has one shared profile, applied symmetrically at both
 endpoints:
 
-| Physical link | Profile source | Applied to |
-| --- | --- | --- |
-| First link | path index 0 / upper triangle | both directions and both endpoints |
-| Second link | path index 1 / lower triangle | both directions and both endpoints |
+| Physical link | Profile source                | Applied to                         |
+| ------------- | ----------------------------- | ---------------------------------- |
+| First link    | path index 0 / upper triangle | both directions and both endpoints |
+| Second link   | path index 1 / lower triangle | both directions and both endpoints |
 
 For example, with `rpath = 8 Mbps, 10 ms, 0%` and `dpath = 24 Mbps, 25 ms,
 0%`, Oasis creates:
@@ -148,7 +158,8 @@ only the relay link; it does not change the direct link's attributes.
 
 ## Loss model in TC
 
-1. 4-state Markov chain 
-
-https://www.man7.org/linux/man-pages/man8/tc-netem.8.html?theme=2019/1000
-
+The current Oasis implementation emits `loss <percent>%`, which uses the
+independent random-loss model. `tc-netem` also supports a 4-state Markov model
+for burst and isolated losses, but Oasis does not currently expose its
+transition parameters. See the [advanced tc guide](./tc-configuration-guide.en.md)
+for the model, parameter semantics, and configuration recommendations.
